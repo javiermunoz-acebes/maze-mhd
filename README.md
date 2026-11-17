@@ -8,20 +8,9 @@ Es un único archivo `index.html`, sin dependencias externas. Todo el cálculo s
 
 En alto alemán medio, *mâze* (también *mâȥe*) significa «medida, proporción», y *diu mâze* es la mesura, la virtud cortesana del equilibrio y la justa medida. La aplicación mide textos y busca en ellos proporciones; el nombre une ese sentido literal con la tradición de la que proceden los textos para los que está pensada.
 
-Escríbase siempre con circunflejo, *Mâze*: sin él, en inglés se lee *maze*, «laberinto».
-
 ## Uso
 
-- **En línea**: `https://<usuario>.github.io/maze-mhd/`.
 - **En local**: descarga `index.html` y ábrelo con el navegador. No necesita instalación ni conexión.
-
-### Publicar en GitHub Pages
-
-1. Crea un repositorio llamado `maze-mhd` y sube a su raíz `index.html`, `README.md` y `CITATION.cff`.
-2. En **Settings → Pages → Build and deployment**, elige *Deploy from a branch*, rama `main`, carpeta `/ (root)`.
-3. La aplicación quedará en `https://<usuario>.github.io/maze-mhd/`.
-
-En `CITATION.cff`, quita el `#` de las líneas `repository-code` y `url` y pon tu usuario de GitHub.
 
 ## Configuración para el alto alemán medio
 
@@ -95,12 +84,3 @@ Con lemas, la concordancia busca todas las formas de un lema, la pestaña Gramá
 
 Si publicas resultados obtenidos con SentiMhd 2, cita también el léxico.
 
-## Cómo citar
-
-El archivo `CITATION.cff` permite que GitHub muestre el botón *Cite this repository*. Para obtener un DOI permanente:
-
-1. Conecta la cuenta de GitHub en <https://zenodo.org> y activa el repositorio en *GitHub → Repositories*.
-2. Crea una *release* en GitHub (p. ej. `v2.0.0`): Zenodo la archiva y le asigna un DOI.
-3. Añade el DOI a `CITATION.cff` (campo `doi:`) y a este README.
-
-Antes de publicar conviene elegir una licencia (p. ej. MIT o EUPL-1.2) y añadirla como `LICENSE` y en el campo `license:` de `CITATION.cff`.
