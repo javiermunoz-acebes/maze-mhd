@@ -1,0 +1,37 @@
+cff-version: 1.2.0
+message: "Si usas Mâze mhd. en una publicación, cítala así."
+title: "Mâze mhd.: lectura distante y análisis cuantitativo de textos en alto alemán medio"
+abstract: "Aplicación web estática para el análisis cuantitativo de textos en alto alemán medio: frecuencias, riqueza léxica, leyes de Zipf y Heaps, verso y rima, concordancias y colocaciones, keyness, estilometría (Delta, Rolling Delta) y análisis de sentimiento con SentiMhd 2, a partir de TXT, TEI-XML (incluidas ediciones de heiEDITIONS), CoNLL-U o TSV/VRT. El nombre procede del mhd. mâze, «medida, mesura»."
+type: software
+version: 2.0.0
+date-released: 2026-11-15
+authors:
+  - family-names: "Muñoz-Acebes"
+    given-names: "Francisco Javier"
+    orcid: "https://orcid.org/0000-0001-6527-203X"
+    affiliation: "Universidad de Valladolid"
+keywords:
+  - Middle High German
+  - Mittelhochdeutsch
+  - distant reading
+  - digital humanities
+  - computational philology
+  - stylometry
+  - sentiment analysis
+  - lexical richness
+  - TEI
+# repository-code: "https://github.com/<usuario>/maze-mhd"
+# url: "https://<usuario>.github.io/maze-mhd/"
+# doi: "10.5281/zenodo.XXXXXXX"
+# license: MIT
+references:
+  - type: data
+    title: "SentiMhd 2"
+    authors:
+      - family-names: "Dimpel"
+        given-names: "Friedrich Michael"
+    year: 2025
+    publisher:
+      name: "DARIAH-DE"
+    doi: "10.20375/0000-0016-DADD-A"
+    license: CC-BY-4.0
