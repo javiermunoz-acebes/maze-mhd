@@ -20,9 +20,7 @@ keywords:
   - sentiment analysis
   - lexical richness
   - TEI
-# repository-code: "https://github.com/<usuario>/maze-mhd"
-# url: "https://<usuario>.github.io/maze-mhd/"
-# doi: "10.5281/zenodo.XXXXXXX"
+# DOI: 10.5281/zenodo.24325747
 # license: MIT
 references:
   - type: data
