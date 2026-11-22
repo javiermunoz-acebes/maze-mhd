@@ -161,6 +161,11 @@ details.help h4{margin:0 0 4px;font-size:12px;text-transform:uppercase;letter-sp
 details.help ul{margin:0;padding-left:18px}details.help li{margin:2px 0}
 @media (max-width:760px){details.help .hcols{grid-template-columns:1fr}}
 .pill.ed{margin-left:.4rem;vertical-align:middle;font-size:.7rem}
+/* Mâze 2.1: metadatos y subcorpus */
+.meta-editor{padding:10px 12px;margin:4px 0 8px;border:1px solid var(--grid);border-radius:8px;background:var(--surface-2)}
+.meta-editor .opts{margin-top:6px;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:7px}
+.meta-editor input{width:100%}
+#subResults .scroll{max-height:350px}
 </style>
 </head>
 <body>
@@ -185,6 +190,12 @@ details.help ul{margin:0;padding-left:18px}details.help li{margin:2px 0}
     <input type="file" id="file" multiple accept=".txt,.xml,.tei,.conllu,.conll,.tsv,.vrt,.tab,.csv,text/plain,text/xml,application/xml" class="hidden">
   </div>
   <div id="fileList"></div>
+  <div class="toolbar" id="sessionToolbar">
+    <button id="sessionSave">⤓ Guardar sesión completa (.maze.json)</button>
+    <button id="sessionLoad">⤒ Restaurar sesión</button>
+    <input id="sessionFile" type="file" accept=".json,.maze,application/json" class="hidden">
+    <span class="note" id="sessionStatus">Incluye originales, parámetros, metadatos y léxicos personalizados. Al restaurar, se recalculan los análisis.</span>
+  </div>
   <details>
     <summary>Pegar texto</summary>
     <div class="inner">
@@ -260,8 +271,8 @@ details.help ul{margin:0;padding-left:18px}details.help li{margin:2px 0}
     <summary>TEI-XML</summary>
     <div class="inner opts" style="margin-top:0">
       <div class="opt"><span>Capa de texto</span>
-        <select id="teiLayer"><option value="reg">regularizada (reg, corr, expan)</option><option value="dipl">diplomática (orig, sic, abbr)</option><option value="norm">regularizada + @norm de &lt;w&gt;</option></select>
-        <span class="note">«Regularizada + @norm» sustituye cada &lt;w&gt; que tiene @norm por esa forma. En heiEDITIONS, @norm solo marca la forma normalizada de la palabra en rima, así que no es una capa normalizada del texto: para la mayoría de análisis conviene la regularizada. Las rimas usan @norm en cualquier capa.</span></div>
+        <select id="teiLayer"><option value="reg">regularizada (reg, corr, expan)</option><option value="dipl">diplomática (orig, sic, abbr)</option><option value="norm">normalizada (@norm de &lt;w&gt;)</option></select>
+        <span class="note">La normalizada usa el atributo @norm de cada &lt;w&gt; cuando existe y, si no, la forma regularizada.</span></div>
       <div class="opt"><span>Elemento raíz que se analiza</span><input type="text" id="teiRoot" value="text"></div>
       <div class="opt"><label class="chk"><input type="checkbox" id="teiSplit"> dividir en textos por divisiones de primer nivel (&lt;div&gt;)</label><span class="note">Cada &lt;div&gt; de primer nivel se analiza como un texto aparte, llamado «n_archivo» (p. ej. «M_Erek_A_Wien»): lo que va antes del guion bajo, el @n de la división, hace de clase en la estilometría.</span></div>
       <div class="opt"><span>Elementos excluidos además de los de la capa</span><input type="text" id="teiExclude" value="teiHeader note rdg fw surplus facsimile metamark del cue"></div>
@@ -302,10 +313,7 @@ details.help ul{margin:0;padding-left:18px}details.help li{margin:2px 0}
   </details>
   <details>
     <summary>Palabras vacías adicionales</summary>
-    <div class="inner"><textarea id="extraStop" rows="4" placeholder="una por línea o separadas por comas"></textarea>
-      <div class="toolbar" style="margin-top:6px"><button class="mini" id="stopLoad">Cargar lista (.txt)…</button><input type="file" id="stopFile" accept=".txt,.csv,.tsv,text/plain" hidden>
-        <label class="chk"><input type="checkbox" id="stopOnly"> usar solo esta lista (sin la de la lengua)</label></div>
-      <span class="note">Una palabra por línea o separadas por comas o espacios; las líneas que empiezan por # se ignoran. Se añaden a la lista de palabras vacías de la lengua, salvo que marques «usar solo esta lista». Se aplican al pulsar «Analizar» y se guardan en los perfiles.</span></div>
+    <div class="inner"><textarea id="extraStop" rows="3" placeholder="una por línea o separadas por comas"></textarea></div>
   </details>
   <details>
     <summary>Categorías léxicas (texto anotado)</summary>
@@ -356,6 +364,7 @@ details.help ul{margin:0;padding-left:18px}details.help li{margin:2px 0}
   <!-- RESUMEN -->
   <div class="tab on" id="tab-resumen">
     <div id="docWarn"></div>
+    <div class="card" id="metaSummaryCard"><h3>Ficha bibliográfica</h3><p class="desc">Metadatos asociados al texto actual (edítalos en «Textos → Ficha» y vuelve a analizar para aplicar los cambios).</p><div class="kv" id="metaKV"></div></div>
     <div class="tiles" id="tiles"></div>
     <div class="grid2">
       <div class="card"><h3>Datos de recuento</h3><div class="kv" id="countsKV"></div></div>
@@ -525,6 +534,8 @@ details.help ul{margin:0;padding-left:18px}details.help li{margin:2px 0}
       <p class="desc">Palabra clave en contexto. Admite comodines <code>*</code> y <code>?</code> (p. ej. <code>minn*</code>) o varias formas separadas por <code>|</code>. La referencia es el verso (@n en TEI), la línea del archivo o la oración (CoNLL-U).</p>
       <div class="toolbar">
         <input type="text" id="kQ" placeholder="palabra" style="min-width:200px">
+        <select id="kMode" title="Buscar por forma, lema o etiqueta gramatical"><option value="form">Forma normalizada</option><option value="lemma">Lema</option><option value="pos">Categoría POS (admite * y ?)</option><option value="query">Consulta combinada</option></select>
+        <span class="note" title="En consulta combinada: lemma=haben & pos=VERB; o secuencias separadas por espacios">Ej.: lemma=haben &amp; pos=VERB</span>
         <span>contexto <input type="number" id="kCtx" value="8" min="1" max="40"></span>
         <span>ordenar por</span>
         <select id="kSort1"></select><select id="kSort2"></select>
@@ -691,6 +702,19 @@ details.help ul{margin:0;padding-left:18px}details.help li{margin:2px 0}
         <div class="toolbar"><button id="compBoot">Calcular IC 95 % para todos (bootstrap)</button><span id="compBootStatus" class="note"></span><span class="sp"></span><span class="dl" id="dlComp"></span></div>
         <div class="scroll"><table id="compTable"></table></div>
       </div>
+      <div class="card" id="subCorpusCard">
+        <h3>Subcorpus por metadatos</h3>
+        <p class="desc">Filtra por una propiedad y compara dos grupos de documentos. Las frecuencias se agrupan sobre todos los tokens, y la significación se ajusta por FDR (Benjamini–Hochberg). El TTR depende de la longitud.</p>
+        <div class="toolbar">
+          <span>Campo</span><select id="subField"><option value="author">Autor</option><option value="date">Fecha / período</option><option value="genre">Género</option><option value="region">Región</option><option value="manuscript">Manuscrito</option><option value="source">Procedencia</option></select>
+          <span>Grupo A</span><select id="subA"></select>
+          <span>Grupo B</span><select id="subB"></select>
+          <button id="subGo">Comparar grupos</button>
+          <label class="chk"><input id="subStyloUse" type="checkbox"> usar estos dos grupos en estilometría</label>
+        </div>
+        <p id="subDesc" class="note"></p>
+        <div id="subResults"></div>
+      </div>
       <div class="card">
         <div class="card-head"><div class="grow"><h3>Una medida en todos los textos</h3><p class="desc">Con intervalos de confianza si se han calculado.</p></div><div class="dl" data-for="chCompBar"></div></div>
         <div class="toolbar"><select id="compMetric"></select></div>
@@ -717,7 +741,7 @@ details.help ul{margin:0;padding-left:18px}details.help li{margin:2px 0}
         <div class="toolbar">
           <span>objetivo</span> <select id="kTarget"></select>
           <span>referencia</span> <select id="kRef"></select>
-          <span>umbral</span> <select id="kP"><option value="3.84">p &lt; 0,05</option><option value="6.63" selected>p &lt; 0,01</option><option value="10.83">p &lt; 0,001</option><option value="15.13">p &lt; 0,0001</option></select>
+          <span>umbral</span> <select id="kP"><option value="fdr05" selected>FDR q &lt; 0,05</option><option value="fdr01">FDR q &lt; 0,01</option><option value="p05">p &lt; 0,05 (sin ajustar)</option><option value="p01">p &lt; 0,01 (sin ajustar)</option></select>
           <span>frecuencia mínima <input type="number" id="kMin" value="5" min="1"></span>
           <label class="chk"><input type="checkbox" id="kStop"> sin palabras vacías</label>
           <button id="keyGo">Calcular</button>
@@ -743,8 +767,8 @@ details.help ul{margin:0;padding-left:18px}details.help li{margin:2px 0}
         <div class="toolbar">
           <span>MFW <input type="number" id="sMfw" value="100" min="10" max="5000" step="10"></span>
           <span>culling % <input type="number" id="sCull" value="0" min="0" max="100" step="10"></span>
-          <span>distancia <select id="sDist"><option value="cosine">Delta del coseno</option><option value="burrows">Delta clásica (Burrows)</option><option value="eder">Delta de Eder</option><option value="argamon">Delta cuadrática (Argamon)</option></select></span>
-          <span>agrupamiento <select id="sLink"><option value="ward">Ward</option><option value="average">media (UPGMA)</option><option value="complete">completo</option><option value="single">simple</option></select></span>
+          <span>distancia <select id="sDist"><option value="cosine">Delta del coseno</option><option value="burrows">Delta clásica (Burrows)</option><option value="eder">Delta de Eder</option><option value="argamon">Delta cuadrática (Argamon)</option><option value="euclidean">Euclídea (para Ward)</option></select></span>
+          <span>agrupamiento <select id="sLink"><option value="ward">Ward (solo euclídea)</option><option value="average" selected>media (UPGMA)</option><option value="complete">completo</option><option value="single">simple</option></select></span>
           <span>muestras de <input type="number" id="sSample" value="0" min="0" step="500"> tokens</span>
           <label class="chk" title="Palabras que en los textos van casi siempre con mayúscula fuera de inicio de verso u oración"><input type="checkbox" id="sNoNames" checked> excluir nombres propios</label>
           <span>excluir <input type="text" id="sExcl" placeholder="otras palabras, separadas por comas" style="width:210px"></span>
@@ -3142,7 +3166,7 @@ positiv	ûzerwelter	ûzerwelter;	ûzerwelter;</script>
    NÚCLEO DE CÁLCULO — se ejecuta en un Web Worker (y, si no es posible,
    en el hilo principal). No usa el DOM.
    ===================================================================== */
-const APP_VERSION = '2.0.0';
+const APP_VERSION = '2.1.0';
 const IS_WORKER = typeof window === 'undefined';
 
 /* ---------- utilidades numéricas ---------- */
@@ -3214,10 +3238,10 @@ la: 'cf ibid id cap lib fol',
 none: ''
 };
 const stripMarks = w => w.normalize('NFD').replace(/[\u0300-\u036f]/g, '').normalize('NFC');
-function stopSet(lang, extra, only) {
-  const s = new Set(only ? [] : (STOP[lang] || '').split(/\s+/).filter(Boolean));
-  (extra || '').split('\n').filter(l => !/^\s*#/.test(l)).join('\n').split(/[\s,;]+/).map(w => w.trim().toLocaleLowerCase()).filter(Boolean).forEach(w => s.add(w));
+function stopSet(lang, extra) {
+  const s = new Set((STOP[lang] || '').split(/\s+/).filter(Boolean));
   if (lang === 'gmh') { [...s].forEach(w => s.add(stripMarks(w))); const h = s.has.bind(s); s.has = w => h(w) || h(stripMarks(w)); }
+  (extra || '').split(/[\n,;]+/).map(w => w.trim().toLocaleLowerCase()).filter(Boolean).forEach(w => s.add(w));
   return s;
 }
 
@@ -3300,11 +3324,7 @@ function setRemTable(text) {
 // Candidatos: forma exacta (normalizada o diplomática) y forma sin diacríticos; gana la de más frecuencia en el ReM, con ventaja para la coincidencia exacta
 function remLookup(form) {
   const k = remKey(form), pk = remPlain(k), T = REMTAB; let best = null, sc = 0;
-  const cand = [[T.N.get(k), 5], [T.D.get(k), 5], [T.NP.get(pk), 1], [T.DP.get(pk), 1]];
-  // grafías alternativas de las ediciones: ae/ä = æ, œ = oe (convención del ReM), ö = oe
-  const alt = new Set([k.replace(/ae/g, 'æ'), k.replace(/ä/g, 'æ'), k.replace(/œ/g, 'oe'), k.replace(/ö/g, 'oe'), k.replace(/ae/g, 'æ').replace(/œ/g, 'oe')]); alt.delete(k);
-  for (const a of alt) cand.push([T.N.get(a), 4], [T.D.get(a), 4], [T.NP.get(remPlain(a)), 1]);
-  for (const [e, w] of cand) if (e && e[3] * w > sc) { best = e; sc = e[3] * w; }
+  for (const [e, w] of [[T.N.get(k), 5], [T.D.get(k), 5], [T.NP.get(pk), 1], [T.DP.get(pk), 1]]) if (e && e[3] * w > sc) { best = e; sc = e[3] * w; }
   return best;
 }
 const remSimple = l => l.replace(/\([^)]*\)/g, '').replace(/[-~]/g, m => m === '~' ? ' ' : '').replace(/[èë]/g, 'e').replace(/[ÈË]/g, 'E').replace(/ò/g, 'o');
@@ -3331,15 +3351,14 @@ function analyzeDoc(doc, o) {
   } else {
     const re = tokenRegex(o); const sb = sentenceBounds(text, o.lang); let b = 0, s = 0, m;
     const WL = doc.wl, nW = WL ? WL.s.length : 0; let wp = 0;
-    const LT = o.lemmatize && o.lang === 'gmh' && REMTAB && !(WL && WL.hasLem) ? REMTAB : null; if (LT) { R0.lemSrc = 'ReM'; } const RNd = LT && doc.rn ? doc.rn : null; let rp = 0;
+    const LT = o.lemmatize && o.lang === 'gmh' && REMTAB && !(WL && WL.hasLem) ? REMTAB : null; if (LT) { R0.lemSrc = 'ReM'; }
     while ((m = re.exec(text))) {
       while (b < sb.length && sb[b] <= m.index) { b++; s++; }
       const wf = normToken(m[0], o, rules); if (!wf) continue;
       if (!WL && !LT) { add(wf, m.index, m[0].length, s); continue; }
       let lem = '', ps = '';
       if (WL) { while (wp < nW && WL.e[wp] <= m.index) wp++; const inW = wp < nW && WL.s[wp] <= m.index; if (inW) { lem = WL.lem[wp]; ps = WL.pos[wp]; } }
-      let nf0 = null; if (RNd) { while (rp < RNd.s.length && RNd.e[rp] <= m.index) rp++; if (rp < RNd.s.length && RNd.s[rp] <= m.index) nf0 = RNd.v[rp]; }
-      if (LT && !lem) { const r = (nf0 && remLookup(nf0)) || remLookup(m[0]); if (r) { lem = o.lemSimple ? remSimple(r[0]) : r[0]; if (!ps) ps = r[1]; if (r[2]) ambN++; } }
+      if (LT && !lem) { const r = remLookup(m[0]); if (r) { lem = o.lemSimple ? remSimple(r[0]) : r[0]; if (!ps) ps = r[1]; if (r[2]) ambN++; } }
       if (lem) wlHit++; noneA.push(lem ? 0 : 1);
       const w = o.unit === 'lemma' && lem ? (LT ? (o.lower ? lem.toLocaleLowerCase() : lem) : (normToken(lem, o, rules) || wf)) : wf;
       add(w, m.index, m[0].length, s);
@@ -3348,7 +3367,7 @@ function analyzeDoc(doc, o) {
   }
   const N = ids.length, V = words.length;
   if (N < 2) throw new Error('El texto no contiene suficientes palabras.');
-  const R = {name: doc.name, kind: doc.kind, cls: classOf(doc.name), text, vocab, words, o,
+  const R = {name: doc.name, kind: doc.kind, cls: doc.meta?.author || classOf(doc.name), meta: doc.meta || {}, sourceFile: doc.sourceFile || doc.name, text, vocab, words, o,
     ids: Int32Array.from(ids), offs: Int32Array.from(offs), lens: Int32Array.from(lens), N, V};
   // renumerar oraciones consecutivamente
   const sent = new Int32Array(N); let sid = -1, prev = null; for (let i = 0; i < N; i++) { if (sentA[i] !== prev) { sid++; prev = sentA[i]; } sent[i] = sid; } R.sent = sent; R.nSent = sid + 1;
@@ -3369,7 +3388,7 @@ function analyzeDoc(doc, o) {
   const order = Array.from({length: V}, (_, i) => i).sort((a, b) => freq[b] - freq[a] || (words[a] < words[b] ? -1 : 1));
   const rank = new Int32Array(V); order.forEach((id, r) => rank[id] = r + 1);
   const spec = new Map(); for (let i = 0; i < V; i++) spec.set(freq[i], (spec.get(freq[i]) || 0) + 1);
-  const stops = stopSet(o.lang, o.extraStop, o.stopOnly); const isStop = new Uint8Array(V); words.forEach((w, i) => { if (stops.has(w)) isStop[i] = 1; });
+  const stops = stopSet(o.lang, o.extraStop); const isStop = new Uint8Array(V); words.forEach((w, i) => { if (stops.has(w)) isStop[i] = 1; });
   Object.assign(R, {freq, order, rank, spec, isStop});
   R.counts = basicCounts(R);
   R.heaps = heapsCurve(R);
@@ -3389,7 +3408,6 @@ function analyzeDoc(doc, o) {
   { const cap = new Int32Array(R.V), mid = new Int32Array(R.V);
     for (let i = 0; i < N; i++) { const first = i === 0 || R.sent[i] !== R.sent[i - 1] || (R.line && R.line[i] !== R.line[i - 1]); if (first) continue; mid[R.ids[i]]++; const ch = R.text.charAt(R.offs[i]); if (ch !== ch.toLocaleLowerCase() && ch === ch.toLocaleUpperCase()) cap[R.ids[i]]++; }
     R.names = []; for (let k = 0; k < R.V; k++) if (mid[k] >= 2 && cap[k] / mid[k] >= 0.8) R.names.push(R.words[k]); }
-  if (doc.rn && doc.rn.s.length && !doc.pre) { const RN = doc.rn, m = new Map(); let k = 0; for (let i = 0; i < N; i++) { const o0 = R.offs[i]; while (k < RN.s.length && RN.e[k] <= o0) k++; if (k < RN.s.length && RN.s[k] <= o0) { const v = RN.v[k]; m.set(i, o.lower ? v.toLocaleLowerCase() : v); } } R.rhymeNorm = m; }
   R.verse = verseInfo(R);
   R.posInfo = posInfo(R);
   R.ms = Date.now() - t0;
@@ -3627,10 +3645,10 @@ function assonance(w) {
   return st + '-' + last;
 }
 function verseInfo(R) {
-  if (!R.line) return null; const {N, ids, line, words} = R; const rhyme = new Map(), init = new Map(), end = new Map(); let nl = 0, nNormR = 0;
+  if (!R.line) return null; const {N, ids, line, words} = R; const rhyme = new Map(), init = new Map(), end = new Map(); let nl = 0;
   for (let i = 0; i < N; i++) {
     if (i === 0 || line[i] !== line[i - 1]) { nl++; init.set(ids[i], (init.get(ids[i]) || 0) + 1); }
-    if (i === N - 1 || line[i + 1] !== line[i]) { const rn = R.rhymeNorm && R.rhymeNorm.get(i); if (rn) nNormR++; const w = rn || words[ids[i]]; rhyme.set(w, (rhyme.get(w) || 0) + 1); const m = w.match(/[aeiouyáéíóúàèìòùâêîôûäöüëïÿæœãõāēīōū]+[^aeiouyáéíóúàèìòùâêîôûäöüëïÿæœãõāēīōū]*$/u); const e = m ? m[0] : w; end.set(e, (end.get(e) || 0) + 1); }
+    if (i === N - 1 || line[i + 1] !== line[i]) { rhyme.set(ids[i], (rhyme.get(ids[i]) || 0) + 1); const w = words[ids[i]]; const m = w.match(/[aeiouyáéíóúàèìòùâêîôûäöüëïÿæœãõāēīōū]+[^aeiouyáéíóúàèìòùâêîôûäöüëïÿæœãõāēīōū]*$/u); const e = m ? m[0] : w; end.set(e, (end.get(e) || 0) + 1); }
   }
   const top = (m, f) => [...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, 80).map(([k, v]) => [f ? f(k) : k, v]);
   let ason = null;
@@ -3639,7 +3657,7 @@ function verseInfo(R) {
     const runs = []; let cur = null, len = 0, start = 0; keys.forEach((k, j) => { if (k && k === cur) len++; else { if (cur && len >= 3) runs.push({k: cur, n: len, start}); cur = k; len = 1; start = j; } }); if (cur && len >= 3) runs.push({k: cur, n: len, start});
     ason = {top: top(am), types: am.size, runs: runs.length, covered: runs.reduce((a, r) => a + r.n, 0), meanRun: runs.length ? runs.reduce((a, r) => a + r.n, 0) / runs.length : 0, longest: runs.slice().sort((a, b) => b.n - a.n).slice(0, 20)};
   }
-  return {ason, normRhymes: nNormR, lines: nl, rhymeTypes: rhyme.size, rhyme: top(rhyme), init: top(init, k => words[k]), endings: top(end), endingTypes: end.size};
+  return {ason, lines: nl, rhymeTypes: rhyme.size, rhyme: top(rhyme, k => words[k]), init: top(init, k => words[k]), endings: top(end), endingTypes: end.size};
 }
 function posInfo(R) {
   if (!R.pos) return null; const m = new Map(); R.pos.forEach(p => m.set(p, (m.get(p) || 0) + 1));
@@ -3704,6 +3722,7 @@ function zMatrix(samples, feats, refStats) {
 function distZ(a, b, method) {
   const p = a.length; let s = 0;
   if (method === 'cosine') { let ab = 0, aa = 0, bb = 0; for (let j = 0; j < p; j++) { ab += a[j] * b[j]; aa += a[j] * a[j]; bb += b[j] * b[j]; } return aa && bb ? 1 - ab / Math.sqrt(aa * bb) : 1; }
+  if (method === 'euclidean') { for (let j = 0; j < p; j++) s += (a[j]-b[j])**2; return Math.sqrt(s); }
   if (method === 'eder') { for (let j = 0; j < p; j++) s += Math.abs(a[j] - b[j]) * (p - j) / p; return s / p; }
   if (method === 'argamon') { for (let j = 0; j < p; j++) s += (a[j] - b[j]) ** 2; return s / p; }
   for (let j = 0; j < p; j++) s += Math.abs(a[j] - b[j]); return s / p; // Burrows
@@ -3739,7 +3758,8 @@ function jacobiEigen(A) {
   return {values: idx.map(i => a[i][i]), vectors: idx.map(i => Float64Array.from(v, r => r[i]))};
 }
 function stylo(DOCS, so, post) {
-  const samples = makeSamples(DOCS, so.sample); const n = samples.length;
+  if (so.linkage === 'ward' && so.dist !== 'euclidean') throw new Error('Ward requiere distancia euclídea sobre el vector z; cambia la distancia o el agrupamiento.');
+  const samples = makeSamples(DOCS, so.sample, so.indices); const n = samples.length;
   if (n < 3) throw new Error('Se necesitan al menos 3 textos o muestras.');
   if (n > 400) throw new Error('Demasiadas muestras (' + n + '); aumenta el tamaño de muestra.');
   post && post({progress: 0.1, msg: 'rasgos'});
@@ -3759,12 +3779,27 @@ function stylo(DOCS, so, post) {
   const centroid = (ix) => { const c = new Float64Array(feats.length); ix.forEach(i => Z[i].forEach((v, j) => c[j] += v / ix.length)); return c; };
   const classes = [...new Set(known.map(i => samples[i].cls))];
   let nnOK = 0, nnN = 0, ceOK = 0, ceN = 0; const loo = [];
+  // Validación dejando fuera un DOCUMENTO completo: selección MFW, culling y z entrenados dentro del fold.
   for (const i of known) {
-    let bj = -1, bd = Infinity; for (const j of known) if (j !== i && D[i][j] < bd) { bd = D[i][j]; bj = j; }
-    const nnPred = bj >= 0 ? samples[bj].cls : '—'; if (bj >= 0) { nnN++; if (nnPred === samples[i].cls) nnOK++; }
-    let cBest = null, cd = Infinity; for (const c of classes) { const ix = known.filter(j => j !== i && samples[j].cls === c); if (!ix.length) continue; const d = distZ(Z[i], centroid(ix), so.dist); if (d < cd) { cd = d; cBest = c; } }
-    const own = known.filter(j => j !== i && samples[j].cls === samples[i].cls).length; if (own > 0) { ceN++; if (cBest === samples[i].cls) ceOK++; }
-    loo.push({i, cls: samples[i].cls, nn: nnPred, nnD: bd, ce: cBest, ceD: cd});
+    const trainIx=known.filter(j=>samples[j].doc!==samples[i].doc);
+    const train=trainIx.map(j=>samples[j]);
+    if (train.length<2) { loo.push({i,cls:samples[i].cls,nn:'—',nnD:NaN,ce:'—',ceD:NaN}); continue; }
+    const foldFeats=selectFeatures(train,so.mfw,so.cull,so.excl);
+    if (!foldFeats.length) { loo.push({i,cls:samples[i].cls,nn:'—',nnD:NaN,ce:'—',ceD:NaN}); continue; }
+    const st=zMatrix(train,foldFeats);
+    const zTest=Float64Array.from(foldFeats,(w,j)=>st.sd[j]>0?((samples[i].counts.get(w)||0)/samples[i].n-st.mean[j])/st.sd[j]:0);
+    let bj=-1,bd=Infinity;
+    for(let k=0;k<train.length;k++) { const d=distZ(zTest,st.Z[k],so.dist); if(d<bd){bd=d;bj=k;} }
+    const nnPred=bj>=0?train[bj].cls:'—';
+    if(bj>=0){nnN++;if(nnPred===samples[i].cls)nnOK++;}
+    let cBest='—',cd=Infinity;
+    for (const c of new Set(train.map(x=>x.cls))) {
+      const group=st.Z.filter((_,k)=>train[k].cls===c);
+      const center=Float64Array.from(foldFeats,(_,j)=>group.reduce((a,v)=>a+v[j],0)/group.length);
+      const d=distZ(zTest,center,so.dist); if(d<cd){cd=d;cBest=c;}
+    }
+    if(train.some(s=>s.cls===samples[i].cls)){ceN++;if(cBest===samples[i].cls)ceOK++;}
+    loo.push({i,cls:samples[i].cls,nn:nnPred,nnD:bd,ce:cBest,ceD:cd});
   }
   const cents = classes.map(c => [c, centroid(known.filter(j => samples[j].cls === c))]);
   const pred = unknown.map(i => { const r = cents.map(([c, ct]) => [c, distZ(Z[i], ct, so.dist)]).sort((a, b) => a[1] - b[1]); let bj = -1, bd = Infinity; for (const j of known) if (D[i][j] < bd) { bd = D[i][j]; bj = j; } return {i, rank: r.slice(0, 5), nn: bj >= 0 ? samples[bj].label : '—', nnCls: bj >= 0 ? samples[bj].cls : '—', nnD: bd}; });
@@ -4534,39 +4569,6 @@ const DICT = {
 "Lematizado con el ReM (consulta forma → lema, sin contexto): {0} % de los tokens con lema; {1} % de formas ambiguas, con el lema más frecuente. Revisa el resultado en la pestaña Anotación; para analizar por lemas, elige «lema» como unidad.": "Mit dem ReM lemmatisiert (Nachschlagen Form → Lemma, ohne Kontext): {0} % der Tokens mit Lemma; {1} % mehrdeutige Formen, mit dem häufigsten Lemma. Ergebnis im Reiter Annotation prüfen; für eine Analyse nach Lemmata «Lemma» als Einheit wählen.",
 "Cargando la tabla de lemas del ReM…": "Lemmatabelle des ReM wird geladen …",
 "Este navegador no puede descomprimir la tabla de lemas del ReM; actualízalo para lematizar.": "Dieser Browser kann die Lemmatabelle des ReM nicht entpacken; zum Lemmatisieren bitte aktualisieren.",
-"Subcorpus del ReM": "ReM-Teilkorpus",
-"zona": "Raum",
-"época": "Zeit",
-"tipo": "Art",
-"de": "von",
-"a": "bis",
-"ostoberdeutsch (bair.)": "ostoberdeutsch (bair.)",
-"westoberdeutsch (alem.)": "westoberdeutsch (alem.)",
-"nordoberdeutsch (ostfränk.)": "nordoberdeutsch (ostfränk.)",
-"westmitteldeutsch": "westmitteldeutsch",
-"ostmitteldeutsch": "ostmitteldeutsch",
-"con rasgos niederdeutsch": "mit niederdeutschen Zügen",
-"documentos (Urkunden)": "Urkunden",
-"documentos": "Urkunden",
-"{0}.ª mitad del s. {1}": "{1}. Jh., {0}. Hälfte",
-"ninguna zona": "kein Raum",
-"ningún tipo": "keine Art",
-"ReM completo": "gesamtes ReM",
-"{0} textos, {1} tokens": "{0} Texte, {1} Tokens",
-"El subcorpus del ReM elegido está vacío: se usa el ReM completo.": "Das gewählte ReM-Teilkorpus ist leer: es wird das gesamte ReM verwendet.",
-"Lematizado con el ReM (consulta forma → lema, sin contexto; subcorpus: {2}): {0} % de los tokens con lema; {1} % de formas ambiguas, con el lema más frecuente. Revisa el resultado en la pestaña Anotación; para analizar por lemas, elige «lema» como unidad.": "Mit dem ReM lemmatisiert (Nachschlagen Form → Lemma, ohne Kontext; Teilkorpus: {2}): {0} % der Tokens mit Lemma; {1} % mehrdeutige Formen, mit dem häufigsten Lemma. Ergebnis im Reiter Annotation prüfen; für eine Analyse nach Lemmata «Lemma» als Einheit wählen.",
-"Consulta en una tabla de formas y lemas sacada del Referenzkorpus Mittelhochdeutsch (ReM 2.1, CC BY-SA 4.0): a cada forma se le asigna su lema y su categoría más frecuentes en el corpus (o en el subcorpus elegido; si la forma no aparece en él, se usa el ReM completo), sin tener en cuenta el contexto. En textos no vistos con formas normalizadas acierta el lema en torno al 95 % de los casos que encuentra. Los lemas del archivo (RNNTagger, TEI con @lemma, CoNLL-U) tienen prioridad.": "Nachschlagen in einer Form-Lemma-Tabelle aus dem Referenzkorpus Mittelhochdeutsch (ReM 2.1, CC BY-SA 4.0): Jeder Form werden ihr häufigstes Lemma und ihre häufigste Wortart im Korpus zugewiesen (oder im gewählten Teilkorpus; kommt die Form dort nicht vor, wird das gesamte ReM verwendet), ohne Kontext. Bei ungesehenen Texten mit normalisierten Formen ist das Lemma in rund 95 % der gefundenen Fälle richtig. Lemmata aus der Datei (RNNTagger, TEI mit @lemma, CoNLL-U) haben Vorrang.",
-"Todas las ediciones": "Alle Ausgaben",
-"Portada de Mâze con todas las ediciones": "Startseite von Mâze mit allen Ausgaben",
-"Cargar lista (.txt)…": "Liste laden (.txt) …",
-"usar solo esta lista (sin la de la lengua)": "nur diese Liste verwenden (ohne die der Sprache)",
-"Una palabra por línea o separadas por comas o espacios; las líneas que empiezan por # se ignoran. Se añaden a la lista de palabras vacías de la lengua, salvo que marques «usar solo esta lista». Se aplican al pulsar «Analizar» y se guardan en los perfiles.": "Ein Wort pro Zeile oder durch Kommas oder Leerzeichen getrennt; Zeilen, die mit # beginnen, werden ignoriert. Sie werden der Stoppwortliste der Sprache hinzugefügt, außer wenn «nur diese Liste verwenden» markiert ist. Sie gelten nach «Analysieren» und werden in Profilen gespeichert.",
-"{0} palabras vacías cargadas de «{1}». Pulsa «Analizar» para aplicarlas.": "{0} Stoppwörter aus «{1}» geladen. Zum Anwenden «Analysieren» drücken.",
-"regularizada + @norm de <w>": "regularisiert + @norm von <w>",
-"«Regularizada + @norm» sustituye cada <w> que tiene @norm por esa forma. En heiEDITIONS, @norm solo marca la forma normalizada de la palabra en rima, así que no es una capa normalizada del texto: para la mayoría de análisis conviene la regularizada. Las rimas usan @norm en cualquier capa.": "«Regularisiert + @norm» ersetzt jedes <w> mit @norm durch diese Form. In heiEDITIONS kennzeichnet @norm nur die normalisierte Form des Reimworts; es ist also keine normalisierte Textschicht: für die meisten Analysen empfiehlt sich die regularisierte. Die Reimanalyse nutzt @norm in jeder Schicht.",
-"Las palabras en rima de {0} versos se toman de su forma normalizada (@norm del <w> final del verso).": "Die Reimwörter von {0} Versen stammen aus ihrer normalisierten Form (@norm des letzten <w> im Vers).",
-"Capa «regularizada + @norm»: {0} palabras se sustituyen por su @norm. En ediciones como heiEDITIONS, @norm solo está en la palabra en rima, así que el resto del texto queda regularizado.": "Schicht «regularisiert + @norm»: {0} Wörter werden durch ihr @norm ersetzt. In Editionen wie heiEDITIONS steht @norm nur beim Reimwort; der übrige Text bleibt regularisiert.",
-"Perfil de alto alemán medio: ſ → s, lematización con el ReM, rimas normalizadas con @norm en TEI y SentiMhd 2 en la pestaña Léxicos.": "Profil Mittelhochdeutsch: ſ → s, Lemmatisierung mit dem ReM, normalisierte Reime über @norm in TEI und SentiMhd 2 im Reiter Lexika.",
 "Edición mhd.": "Ausgabe mhd.",
 "mhd.": "mhd.",
 "Edición general": "Allgemeine Ausgabe",
@@ -5363,39 +5365,6 @@ const DICT = {
 "Lematizado con el ReM (consulta forma → lema, sin contexto): {0} % de los tokens con lema; {1} % de formas ambiguas, con el lema más frecuente. Revisa el resultado en la pestaña Anotación; para analizar por lemas, elige «lema» como unidad.": "Lemmatised with ReM (form → lemma lookup, no context): {0} % of tokens with a lemma; {1} % ambiguous forms, given their most frequent lemma. Check the result in the Annotation tab; to analyse by lemma, choose \"lemma\" as the unit.",
 "Cargando la tabla de lemas del ReM…": "Loading the ReM lemma table…",
 "Este navegador no puede descomprimir la tabla de lemas del ReM; actualízalo para lematizar.": "This browser cannot decompress the ReM lemma table; update it to lemmatise.",
-"Subcorpus del ReM": "ReM subcorpus",
-"zona": "area",
-"época": "period",
-"tipo": "type",
-"de": "from",
-"a": "to",
-"ostoberdeutsch (bair.)": "East Upper German (Bav.)",
-"westoberdeutsch (alem.)": "West Upper German (Alem.)",
-"nordoberdeutsch (ostfränk.)": "North Upper German (East Franc.)",
-"westmitteldeutsch": "West Central German",
-"ostmitteldeutsch": "East Central German",
-"con rasgos niederdeutsch": "with Low German features",
-"documentos (Urkunden)": "charters (Urkunden)",
-"documentos": "charters",
-"{0}.ª mitad del s. {1}": "{1} c., {0} half",
-"ninguna zona": "no area",
-"ningún tipo": "no type",
-"ReM completo": "full ReM",
-"{0} textos, {1} tokens": "{0} texts, {1} tokens",
-"El subcorpus del ReM elegido está vacío: se usa el ReM completo.": "The selected ReM subcorpus is empty: the full ReM is used.",
-"Lematizado con el ReM (consulta forma → lema, sin contexto; subcorpus: {2}): {0} % de los tokens con lema; {1} % de formas ambiguas, con el lema más frecuente. Revisa el resultado en la pestaña Anotación; para analizar por lemas, elige «lema» como unidad.": "Lemmatised with ReM (form → lemma lookup, no context; subcorpus: {2}): {0} % of tokens with a lemma; {1} % ambiguous forms, given their most frequent lemma. Check the result in the Annotation tab; to analyse by lemma, choose \"lemma\" as the unit.",
-"Consulta en una tabla de formas y lemas sacada del Referenzkorpus Mittelhochdeutsch (ReM 2.1, CC BY-SA 4.0): a cada forma se le asigna su lema y su categoría más frecuentes en el corpus (o en el subcorpus elegido; si la forma no aparece en él, se usa el ReM completo), sin tener en cuenta el contexto. En textos no vistos con formas normalizadas acierta el lema en torno al 95 % de los casos que encuentra. Los lemas del archivo (RNNTagger, TEI con @lemma, CoNLL-U) tienen prioridad.": "Lookup in a form–lemma table drawn from the Reference Corpus of Middle High German (ReM 2.1, CC BY-SA 4.0): each form gets its most frequent lemma and tag in the corpus (or in the chosen subcorpus; if the form does not occur there, the full ReM is used), without context. On unseen texts with normalised forms the lemma is right in about 95 % of the cases found. Lemmas from the file (RNNTagger, TEI with @lemma, CoNLL-U) take precedence.",
-"Todas las ediciones": "All editions",
-"Portada de Mâze con todas las ediciones": "Mâze home page with all editions",
-"Cargar lista (.txt)…": "Load list (.txt)…",
-"usar solo esta lista (sin la de la lengua)": "use only this list (without the language's)",
-"Una palabra por línea o separadas por comas o espacios; las líneas que empiezan por # se ignoran. Se añaden a la lista de palabras vacías de la lengua, salvo que marques «usar solo esta lista». Se aplican al pulsar «Analizar» y se guardan en los perfiles.": "One word per line or separated by commas or spaces; lines starting with # are ignored. They are added to the language's stopword list unless \"use only this list\" is ticked. They apply when you press \"Analyse\" and are saved in profiles.",
-"{0} palabras vacías cargadas de «{1}». Pulsa «Analizar» para aplicarlas.": "{0} stopwords loaded from \"{1}\". Press \"Analyse\" to apply them.",
-"regularizada + @norm de <w>": "regularised + @norm of <w>",
-"«Regularizada + @norm» sustituye cada <w> que tiene @norm por esa forma. En heiEDITIONS, @norm solo marca la forma normalizada de la palabra en rima, así que no es una capa normalizada del texto: para la mayoría de análisis conviene la regularizada. Las rimas usan @norm en cualquier capa.": "\"Regularised + @norm\" replaces each <w> that has @norm with that form. In heiEDITIONS, @norm only marks the normalised form of the rhyme word, so it is not a normalised layer of the text: for most analyses the regularised layer is preferable. Rhyme analysis uses @norm in any layer.",
-"Las palabras en rima de {0} versos se toman de su forma normalizada (@norm del <w> final del verso).": "The rhyme words of {0} lines are taken from their normalised form (@norm of the line's final <w>).",
-"Capa «regularizada + @norm»: {0} palabras se sustituyen por su @norm. En ediciones como heiEDITIONS, @norm solo está en la palabra en rima, así que el resto del texto queda regularizado.": "\"Regularised + @norm\" layer: {0} words are replaced by their @norm. In editions such as heiEDITIONS, @norm is only on the rhyme word, so the rest of the text stays regularised.",
-"Perfil de alto alemán medio: ſ → s, lematización con el ReM, rimas normalizadas con @norm en TEI y SentiMhd 2 en la pestaña Léxicos.": "Middle High German profile: ſ → s, lemmatisation with ReM, rhymes normalised via @norm in TEI, and SentiMhd 2 in the Lexicons tab.",
 "Edición mhd.": "MHG edition",
 "mhd.": "MHG",
 "Edición general": "General edition",
@@ -5798,13 +5767,17 @@ async function addFiles(list) {
   for (const f of list) { try { const raw = await readFile(f); FILES = FILES.filter(x => x.name !== f.name); FILES.push({name: f.name, raw, kind: detectKind(f.name, raw), size: f.size, file: f}); } catch (e) { setStatus(t('No se pudo leer {0}.', f.name)); } }
   renderFileList();
 }
+const META_FIELDS = [['author','Autor'],['title','Título'],['date','Fecha / período'],['genre','Género'],['region','Región'],['manuscript','Manuscrito'],['source','Procedencia']];
 const KINDS = {txt: 'texto plano', tei: 'TEI-XML', conllu: 'CoNLL-U', tsv: 'TSV / VRT'};
 function renderFileList() {
   const el = $('#fileList');
-  el.innerHTML = FILES.map((f, i) => `<div class="frow"><input class="nm" data-nm="${i}" value="${esc(f.name)}" title="${esc(t('Nombre del texto (Autor_Titulo): se puede cambiar'))}"><span class="meta">${nf(f.size / 1024, 1)} KB</span><select data-k="${i}">${Object.entries(KINDS).map(([k, v]) => `<option value="${k}"${k === f.kind ? ' selected' : ''}>${t(v)}</option>`).join('')}</select><button class="mini" data-rm="${i}" title="${t('Quitar')}">✕</button></div>`).join('')
+  el.innerHTML = FILES.map((f, i) => `<div class="frow"><input class="nm" data-nm="${i}" value="${esc(f.name)}" title="${esc(t('Nombre del texto (Autor_Titulo): se puede cambiar'))}"><span class="meta">${nf(f.size / 1024, 1)} KB</span><select data-k="${i}">${Object.entries(KINDS).map(([k, v]) => `<option value="${k}"${k === f.kind ? ' selected' : ''}>${t(v)}</option>`).join('')}</select><button class="mini" data-meta="${i}" title="Editar metadatos">Ficha</button><button class="mini" data-rm="${i}" title="${t('Quitar')}">✕</button></div>
+    <div class="meta-editor hidden" data-meta-panel="${i}"><div class="note">Ficha del documento (autor y título también se utilizan en los análisis)</div><div class="opts">${META_FIELDS.map(([k,label]) => `<label class="opt">${label}<input type="text" data-meta-field="${k}" data-file="${i}" value="${esc((f.meta||{})[k]||'')}"></label>`).join('')}</div></div>`).join('')
     + (FILES.length > 1 ? `<div class="toolbar" style="margin:6px 0 0"><span class="note">${t('{0} archivos', FILES.length)}</span><button class="mini" id="clearFiles">${t('Quitar todos')}</button></div>` : '');
   el.querySelectorAll('[data-k]').forEach(s => s.onchange = () => FILES[+s.dataset.k].kind = s.value);
   el.querySelectorAll('[data-nm]').forEach(s => s.onchange = () => { const v = s.value.trim(); if (v) FILES[+s.dataset.nm].name = v; else s.value = FILES[+s.dataset.nm].name; });
+  el.querySelectorAll('[data-meta]').forEach(b => b.onclick = () => el.querySelector(`[data-meta-panel="${b.dataset.meta}"]`).classList.toggle('hidden'));
+  el.querySelectorAll('[data-meta-field]').forEach(x => x.oninput = () => { const f = FILES[+x.dataset.file]; (f.meta ||= {})[x.dataset.metaField] = x.value.trim(); });
   el.querySelectorAll('[data-rm]').forEach(b => b.onclick = () => { FILES.splice(+b.dataset.rm, 1); renderFileList(); });
   const cl = $('#clearFiles'); if (cl) cl.onclick = () => { FILES = []; renderFileList(); };
   $('#runBtn').disabled = !FILES.length;
@@ -5833,7 +5806,7 @@ function resolveEntities(xml) {
     if (/^(amp|lt|gt|quot|apos)$/.test(n)) return m;
     if (n in decl) return decl[n];
     if (n in TEI_ENT) { info.mufi.add(n); return TEI_ENT[n]; }
-    info.unknown.add(n); return '';
+    info.unknown.add(n); return m; // no destruir los caracteres de una edición
   });
   return {xml, info};
 }
@@ -5841,6 +5814,7 @@ function resolveEntities(xml) {
 const TEI_LAYERS = {reg: ['sic', 'orig', 'abbr', 'am'], norm: ['sic', 'orig', 'abbr', 'am'], dipl: ['corr', 'reg', 'expan', 'ex', 'supplied']};
 function teiToDoc(name, rawXml, o) {
   const {xml, info} = resolveEntities(rawXml);
+  if (info.unknown.size) throw new Error('Entidades XML no resueltas: ' + [...info.unknown].map(n => '&' + n + ';').join(', ') + '. Decláralas en el TEI o añádelas a la tabla de entidades.');
   const dom = new DOMParser().parseFromString(xml, 'application/xml'); const err = dom.getElementsByTagName('parsererror');
   if (err.length) throw new Error(t('XML mal formado') + ': ' + err[0].textContent.replace(/\s+/g, ' ').trim().slice(0, 160));
   const root = dom.getElementsByTagNameNS('*', o.teiRoot || 'text')[0] || dom.documentElement;
@@ -5858,7 +5832,7 @@ function teiBuild(name, root, o, info) {
   const hasL0 = root.getElementsByTagNameNS('*', 'l').length > 0; const prose = o.textType === 'prose' || (o.textType !== 'verse' && !hasL0); const hasL = hasL0 || prose;
   const BLOCK = new Set(['p', 'l', 'lg', 'head', 'sp', 'speaker', 'ab', 'item', 'list', 'table', 'row', 'cell', 'quote', 'note', 'trailer', 'byline', 'dateline', 'closer', 'opener', 'salute', 'signed', 'argument', 'epigraph', 'docTitle', 'titlePart']);
   // Búfer por trozos: consultar el final de una cadena que crece por concatenación obliga a recomponerla entera (coste cuadrático)
-  const parts = []; let len = 0; const refs = [], divs = [], wl = [], rn = []; let lc = 0, pc = 0, nNorm = 0; const divStack = [];
+  const parts = []; let len = 0; const refs = [], divs = [], wl = []; let lc = 0, pc = 0, nNorm = 0; const divStack = [];
   const lastCh = () => { for (let i = parts.length - 1; i >= 0; i--) if (parts[i].length) return parts[i][parts[i].length - 1]; return ''; };
   const lastWS = () => { const c = lastCh(); return c === ' ' || c === '\n' || c === '\t' || c === '\r'; };
   const push = x => { if (x) { parts.push(x); len += x.length; } };
@@ -5883,13 +5857,13 @@ function teiBuild(name, root, o, info) {
     else if (ln === 'p' || ln === 'ab') { nl(2); pc++; refs.push({off: len, label: prefix() + '¶ ' + (node.getAttribute('n') || pc)}); }
     else if (BLOCK.has(ln)) nl(1);
     for (const c of node.childNodes) walk(c);
-    if (ln === 'w') { if ((wLem || wPos) && len > wStart) wl.push([wStart, len, wLem, wPos]); const nv = node.getAttribute('norm'); if (nv && len > wStart) rn.push([wStart, len, nv.normalize('NFC')]); space(); }
+    if (ln === 'w') { if ((wLem || wPos) && len > wStart) wl.push([wStart, len, wLem, wPos]); space(); }
     if (BLOCK.has(ln)) nl(ln === 'p' || ln === 'ab' ? 2 : 1);
     if (isDiv) divStack.pop();
   };
   walk(root); const text = parts.join('');
   // Composición Unicode (NFC) por tramos, para que u + diéresis combinante cuente igual que «ü» sin descuadrar las referencias
-  const cuts = [...new Set([0, ...refs.map(r => r.off), ...divs.map(d => d.off), ...wl.map(w => w[0]), ...wl.map(w => w[1]), ...rn.map(w => w[0]), ...rn.map(w => w[1]), text.length])].sort((a, b) => a - b); const map = new Map(); let out = '';
+  const cuts = [...new Set([0, ...refs.map(r => r.off), ...divs.map(d => d.off), ...wl.map(w => w[0]), ...wl.map(w => w[1]), text.length])].sort((a, b) => a - b); const map = new Map(); let out = '';
   for (let k = 0; k < cuts.length; k++) { map.set(cuts[k], out.length); if (k < cuts.length - 1) out += text.slice(cuts[k], cuts[k + 1]).normalize('NFC'); }
   refs.forEach(r => r.off = map.get(r.off)); divs.forEach(d => d.off = map.get(d.off));
   let WL = null;
@@ -5898,10 +5872,8 @@ function teiBuild(name, root, o, info) {
   if (info.mufi.size) warn.push(t('Entidades del DTD externo resueltas con la tabla MUFI integrada: {0}.', [...info.mufi].map(n => '&' + n + ';').join(' ')));
   if (info.unknown.size) warn.push(t('Entidades sin definir eliminadas del texto: {0}.', [...info.unknown].map(n => '&' + n + ';').join(' ')));
   if (layer === 'norm' && !nNorm) warn.push(t('El documento no tiene atributos @norm en <w>: se usa la capa regularizada.'));
-  else if (layer === 'norm' && nNorm) warn.push(t('Capa «regularizada + @norm»: {0} palabras se sustituyen por su @norm. En ediciones como heiEDITIONS, @norm solo está en la palabra en rima, así que el resto del texto queda regularizado.', nf(nNorm)));
   if (WL && WL.hasLem) warn.push(t('El TEI trae lemas (@lemma de <w>) en {0} palabras: se pueden analizar por lema.', nf(WL.lem.filter(Boolean).length)));
-  const RN = rn.length ? {s: rn.map(w => map.get(w[0])), e: rn.map(w => map.get(w[1])), v: rn.map(w => w[2])} : null;
-  return {name, kind: 'tei', text: out, refs, divs, warn, wl: WL, rn: RN, prose, typeAuto: o.textType === 'auto'};
+  return {name, kind: 'tei', text: out, refs, divs, warn, wl: WL, prose, typeAuto: o.textType === 'auto'};
 }
 function conlluToDoc(name, raw) {
   const forms = [], lemmas = [], pos = [], sent = [], offs = [], lens = [], sentLabels = []; let text = '', s = 0, cur = null, has = false;
@@ -6001,7 +5973,7 @@ function prepare(f, o) {
 function getOpts() {
   return {lower: $('#optLower').checked, nums: $('#optNums').checked, apos: $('#optApos').checked, hyph: $('#optHyph').checked, longS: $('#optLongS').checked, stripMarks: $('#optStripMarks').checked,
     unit: $('#unit').value, win: Math.max(10, +$('#pWin').value || 500), seg: Math.max(10, +$('#pSeg').value || 100), parts: clamp(+$('#pParts').value || 10, 2, 100),
-    lang: $('#lang').value, extraStop: $('#extraStop').value, stopOnly: $('#stopOnly').checked, rules: $('#rules').value, lexPos: $('#lexPos').value,
+    lang: $('#lang').value, extraStop: $('#extraStop').value, rules: $('#rules').value, lexPos: $('#lexPos').value,
     segMode: $('#segMode').value, segRegex: $('#segRegex').value, teiRoot: $('#teiRoot').value.trim(), teiExclude: $('#teiExclude').value, teiLayer: $('#teiLayer').value,
     tsvForm: +$('#tsvForm').value || 1, tsvLemma: +$('#tsvLemma').value || 0, tsvPos: +$('#tsvPos').value || 0, tsvHeader: $('#tsvHeader').checked, tsvAuto: $('#tsvAuto').checked, textType: $('#textType').value, teiSplit: $('#teiSplit').checked, lemmatize: $('#remLem').checked && !!$('#lex-rem').textContent.trim(), lemSimple: $('#remSimple').checked};
 }
@@ -6046,7 +6018,7 @@ const PRESETS = {
 $('#rulePreset').onchange = () => { const p = PRESETS[$('#rulePreset').value]; if (p) $('#rules').value = ($('#rules').value.trim() ? $('#rules').value.trim() + '\n' : '') + p; $('#rulePreset').value = ''; };
 $('#lexPreset').onchange = () => { if ($('#lexPreset').value !== 'custom') $('#lexPos').value = $('#lexPreset').value; };
 const PROF_KEY = 'dr-profiles';
-const PROF_FIELDS = ['lang', 'textType', 'teiSplit', 'remLem', 'remSimple', 'rules', 'extraStop', 'stopOnly', 'optLower', 'optNums', 'optApos', 'optHyph', 'optLongS', 'optStripMarks', 'unit', 'segMode', 'segRegex', 'teiRoot', 'teiExclude', 'teiLayer', 'lexPos', 'pWin', 'pSeg', 'pParts'];
+const PROF_FIELDS = ['lang', 'textType', 'teiSplit', 'remLem', 'remSimple', 'rules', 'extraStop', 'optLower', 'optNums', 'optApos', 'optHyph', 'optLongS', 'optStripMarks', 'unit', 'segMode', 'segRegex', 'teiRoot', 'teiExclude', 'teiLayer', 'lexPos', 'pWin', 'pSeg', 'pParts'];
 function loadProfiles() { try { return JSON.parse(localStorage.getItem(PROF_KEY) || '{}'); } catch (e) { return {}; } }
 function saveProfiles(p) { try { localStorage.setItem(PROF_KEY, JSON.stringify(p)); } catch (e) {} }
 function profileFromForm() { const o = {}; PROF_FIELDS.forEach(k => { const el = $('#' + k); o[k] = el.type === 'checkbox' ? el.checked : el.value; }); return o; }
@@ -6058,6 +6030,68 @@ $('#profDel').onclick = () => { const k = $('#profileSel').value; if (!k) return
 $('#profExp').onclick = () => { const k = $('#profileSel').value; const data = k ? {[k]: loadProfiles()[k]} : {[t('perfil')]: profileFromForm()}; download('maze-perfil.json', JSON.stringify(data, null, 2), 'application/json'); };
 $('#profImp').onclick = () => $('#profFile').click();
 $('#profFile').onchange = async e => { const f = e.target.files[0]; if (!f) return; try { const data = JSON.parse(await f.text()); const p = loadProfiles(); Object.assign(p, data); saveProfiles(p); const k = Object.keys(data)[0]; renderProfiles(k); profileToForm(data[k]); } catch (err) { alert(t('Archivo de perfil no válido.')); } e.target.value = ''; };
+
+/* =====================================================================
+   MÂZE 2.1: SESIONES REPRODUCIBLES. Los resultados se recalculan al importar.
+   ===================================================================== */
+const SESSION_SCHEMA='maze.session.v1';
+const SESSION_UI=['kQ','kMode','kCtx','kMin','kP','kStop','subField','subA','subB','subStyloUse','sMfw','sCull','sDist','sLink','sSample','sNoNames','sExcl','rWin','rStep','rMfw','lexSel','lexLemma','lexNeg','lexNegWords'];
+function getSessionControls() {
+  // Se serializan todos los controles de la investigación (incluidos filtros de visualización).
+  // Nunca se guarda el objeto File del navegador: FILES[].raw conserva el texto original.
+  const excluded=new Set(['file','profFile','lexFile','sessionFile','paste','pasteName']);
+  const inputs=$$('input[id], select[id], textarea[id]');
+  const out={};
+  for(const el of inputs){if(excluded.has(el.id)||el.type==='file'||el.type==='button'||el.type==='submit')continue;
+    out[el.id]=el.type==='checkbox'?el.checked:el.value;}
+  return out;
+}
+function restoreSessionControls(controls) {
+  for(const [id,v] of Object.entries(controls||{})){
+    const el=document.getElementById(id); if(!el || el.type==='file' || !['INPUT','TEXTAREA','SELECT'].includes(el.tagName))continue;
+    if(el.type==='checkbox')el.checked=!!v;else el.value=String(v);
+  }
+}
+function sessionSnapshot() {
+  const disabled={};
+  for(const L of [...LEX_LIBRARY,...LEXICONS]) disabled[L.id]=[...loadDisabled(L)];
+  return {schema:SESSION_SCHEMA,appVersion:APP_VERSION,created:new Date().toISOString(),edition:EDITION,
+    files:FILES.map(f=>({name:f.name,raw:f.raw,kind:f.kind,size:f.size,meta:f.meta||{}})),
+    controls:getSessionControls(),lexicons:LEXICONS.filter(L=>!L.builtin).map(L=>({id:L.id,name:L.name,lang:L.lang,entries:L.entries,cats:L.cats,cite:L.cite||'',disabled:L.disabled||[],builtin:false})),
+    lexiconDisabled:disabled,activeDoc:AI,activeTab:$('#tabs button.on[data-tab]')?.dataset.tab||'resumen',uiLanguage:LANG};
+}
+$('#sessionSave').onclick=()=>{
+  if(!FILES.length){$('#sessionStatus').textContent='Primero añade uno o varios textos.';return;}
+  const snapshot=sessionSnapshot();
+  download('maze-sesion-'+new Date().toISOString().slice(0,10)+'.maze.json',JSON.stringify(snapshot), 'application/json;charset=utf-8');
+  $('#sessionStatus').textContent=`Sesión exportada: ${snapshot.files.length} archivo(s), con textos originales y configuración.`;
+};
+$('#sessionLoad').onclick=()=>$('#sessionFile').click();
+$('#sessionFile').onchange=async e=>{
+  const f=e.target.files[0];if(!f)return;
+  try{
+    if(f.size>250*1024*1024)throw new Error('La sesión supera el límite de 250 MB.');
+    const data=JSON.parse(await f.text());
+    if(data.schema!==SESSION_SCHEMA||!Array.isArray(data.files)||!data.files.every(x=>typeof x.name==='string'&&typeof x.raw==='string'&&KINDS[x.kind]))throw new Error('Formato de sesión incorrecto o no compatible.');
+    if(data.edition!==EDITION)throw new Error('La sesión se generó para una edición diferente de Mâze.');
+    FILES=data.files.map(x=>({name:x.name,raw:x.raw,kind:x.kind,size:x.size||x.raw.length,meta:x.meta||{}}));
+    LEXICONS=LEXICONS.filter(x=>x.builtin).concat((data.lexicons||[]).filter(x=>x&&!x.builtin&&Array.isArray(x.entries)));
+    for(const [id,words] of Object.entries(data.lexiconDisabled||{}))try{localStorage.setItem(lexDisabledKey(id),JSON.stringify(words));}catch(e){}
+    restoreSessionControls(data.controls);
+    renderFileList();
+    setLang(['es','de','en'].includes(data.uiLanguage)?data.uiLanguage:'es');
+    $('#sessionStatus').textContent='Restaurando: preparando y volviendo a analizar los textos…';
+    await runAnalysis();
+    if(DOCS.length){
+      fillLexSelect(true);restoreSessionControls(data.controls);
+      selectDoc(Math.min(Math.max(0,+data.activeDoc||0),DOCS.length-1));
+      fillSubFields(); // se conservan los criterios guardados si existen
+      const tab=$('#tabs button[data-tab="'+data.activeTab+'"]');if(tab)switchTab(data.activeTab);
+      $('#sessionStatus').textContent='Sesión restaurada. Resultados recalculados con los parámetros guardados.';
+    }
+  }catch(err){$('#sessionStatus').textContent='No se pudo restaurar: '+err.message;}
+  e.target.value='';
+};
 
 /* =====================================================================
    TAREAS EN SEGUNDO PLANO
@@ -6094,15 +6128,13 @@ function setProgress(f, msg) { const p = $('#prog'); if (f == null) { p.style.di
    ===================================================================== */
 let DOCS = [], A = null, AI = 0; let OPTS = null;
 let BOOT = {}, STAB = {}, STYLO = null, ROLL = null, KEY = null, NG = null, BIG = null, COLL = null, NET = null, KW = [];
-$('#stopLoad').onclick = () => $('#stopFile').click();
-$('#stopFile').onchange = async e => { const f = e.target.files[0]; if (!f) return; const txt = decodeBytes(new Uint8Array(await f.arrayBuffer())).replace(/\r\n?/g, '\n');
-  const cur = $('#extraStop').value.trim(); $('#extraStop').value = (cur ? cur + '\n' : '') + txt.trim(); e.target.value = '';
-  const n = txt.split('\n').filter(l => !/^\s*#/.test(l)).join('\n').split(/[\s,;]+/).filter(Boolean).length; setStatus(t('{0} palabras vacías cargadas de «{1}». Pulsa «Analizar» para aplicarlas.', nf(n), f.name)); };
 $('#runBtn').onclick = runAnalysis;
 async function runAnalysis() {
   if (!FILES.length) return; const o = getOpts(); OPTS = o; const docs = [], errs = []; const t0 = performance.now();
   $('#runBtn').disabled = true; setProgress(0, t('Preparando los textos…')); await new Promise(r => setTimeout(r, 30));
-  for (const f of FILES) { try { docs.push(...[].concat(prepare(f, o))); } catch (e) { errs.push(f.name + ': ' + e.message); } }
+  for (const f of FILES) { try {
+    for (const d of [].concat(prepare(f, o))) { d.meta = {...(f.meta || {})}; d.sourceFile = f.name; docs.push(d); }
+  } catch (e) { errs.push(f.name + ': ' + e.message); } }
   if (!docs.length) { setStatus(errs.join(' · ')); setProgress(null); $('#runBtn').disabled = false; return; }
   setProgress(0, t('Analizando…'));
   try {
@@ -6154,6 +6186,10 @@ function refFor(R, i) {
 
 function renderDoc() {
   const R = A, c = R.counts, st = stats(c.sentLens), ln = stats(c.lineLens), q = R.qm;
+  const meta = R.meta || {};
+  const fields = META_FIELDS.filter(([key]) => meta[key]).map(([key, label]) => [label, esc(meta[key])]);
+  $('#metaSummaryCard').classList.toggle('hidden', !fields.length);
+  kv($('#metaKV'), fields);
   $('#gramBtn').classList.toggle('hidden', !R.pos); $('#anotBtn').classList.toggle('hidden', !(R.lemmas || R.pos));
   if (!(R.lemmas || R.pos) && $('#tab-anot').classList.contains('on')) setTimeout(() => switchTab('resumen'));
   else if ($('#tab-anot').classList.contains('on')) setTimeout(renderAnot);
@@ -6297,7 +6333,7 @@ function renderStructure() {
   $('#segTable').innerHTML = `<thead><tr>${cols.map((c, i) => `<th class="${i ? 'num' : ''}">${esc(c[1])}</th>`).join('')}</tr></thead><tbody>` + S.map(s => `<tr>${cols.map((c, i) => i ? `<td class="num">${nf(s[c[0]], c[2])}</td>` : `<td>${esc(s.label)}</td>`).join('')}</tr>`).join('') + '</tbody>';
   const V = R.verse; $('#verseCard').classList.toggle('hidden', !V);
   if (V) {
-    $('#verseDesc').textContent = t('{0} líneas; {1} palabras distintas en posición de rima ({2} %) y {3} terminaciones distintas. Si el texto es prosa con saltos de línea, estas tablas reflejan simplemente el final de cada línea.', nf(V.lines), nf(V.rhymeTypes), nf(100 * V.rhymeTypes / V.lines, 1), nf(V.endingTypes)) + (V.normRhymes ? ' ' + t('Las palabras en rima de {0} versos se toman de su forma normalizada (@norm del <w> final del verso).', nf(V.normRhymes)) : '');
+    $('#verseDesc').textContent = t('{0} líneas; {1} palabras distintas en posición de rima ({2} %) y {3} terminaciones distintas. Si el texto es prosa con saltos de línea, estas tablas reflejan simplemente el final de cada línea.', nf(V.lines), nf(V.rhymeTypes), nf(100 * V.rhymeTypes / V.lines, 1), nf(V.endingTypes));
     const tb = (rows, el) => $(el).innerHTML = `<thead><tr><th>#</th><th>${t('Palabra')}</th><th class="num">${t('Frec.')}</th><th class="num">%</th></tr></thead><tbody>` + rows.map((r, i) => `<tr><td class="num">${i + 1}</td><td><a class="wlink" data-w="${esc(r[0])}">${esc(r[0])}</a></td><td class="num">${nf(r[1])}</td><td class="num">${nf(100 * r[1] / V.lines, 2)}</td></tr>`).join('') + '</tbody>';
     tb(V.rhyme, '#rhymeTable'); tb(V.init, '#initTable');
     $('#asonBox').classList.toggle('hidden', !V.ason);
@@ -6355,25 +6391,67 @@ $('#tGo').onclick = renderVisible; $('#tWords').addEventListener('keydown', e =>
 $('#tMode').onchange = () => { $('#tPartsWrap').classList.toggle('hidden', $('#tMode').value === 'seg'); renderVisible(); }; $('#tPartsWrap').classList.add('hidden');
 
 /* ---------- concordancias ---------- */
+/* Concordancias 2.1: predicados sobre la anotación, con secuencias de tokens. */
+function kwicConditions(part, mode) {
+  const tests=[];
+  if (mode==='query') {
+    for (const clause of part.split(/\s*&\s*/).filter(Boolean)) {
+      const m=clause.match(/^(form|forma|lemma|lema|pos)\s*=\s*(.+)$/i);
+      if(!m) throw new Error('Consulta no válida: ' + clause + '. Ejemplo: lemma=haben & pos=VERB');
+      tests.push([({forma:'form',lema:'lemma'}[m[1].toLowerCase()]||m[1].toLowerCase()), wcRe(m[2].trim())]);
+    }
+  } else tests.push([mode,wcRe(part.trim())]);
+  return tests;
+}
+function compileKwicQuery(R, q, mode) {
+  // ; separa posiciones consecutivas. & combina condiciones en la misma posición.
+  const pats=(mode==='query'?q.split(/\s*;\s*/):[q]).map(x=>kwicConditions(x,mode));
+  if (!pats.length || pats.some(p=>!p.length)) throw new Error('Consulta vacía.');
+  const missing=[...new Set(pats.flatMap(p=>p.map(x=>x[0])))].filter(k=>(k==='lemma'&&!R.lemmas)||(k==='pos'&&!R.pos));
+  if(missing.length) throw new Error('Esta búsqueda requiere anotación: ' + missing.join(', '));
+  const normalRules=parseRules(R.o?.rules||'');
+  return {len:pats.length,match(i) {
+    if(i+pats.length>R.N)return false;
+    for(let z=0;z<pats.length;z++){
+      if(z && R.sent[i+z]!==R.sent[i]) return false;
+      for(const [field,re] of pats[z]){
+        const j=i+z;
+        const value=field==='lemma' ? (R.lemNone&&R.lemNone[j]?'':R.lemmas[j]):field==='pos'?R.pos[j]:(R.forms?normToken(R.forms[j],R.o,normalRules):R.words[R.ids[j]]);
+        if(!re.test(value||'')) return false;
+      }
+    }
+    return true;
+  }};
+}
+
 const KSORT = [['pos', 'posición'], ['L3', '3.ª izquierda'], ['L2', '2.ª izquierda'], ['L1', '1.ª izquierda'], ['C', 'palabra clave'], ['R1', '1.ª derecha'], ['R2', '2.ª derecha'], ['R3', '3.ª derecha']];
 function fillKSort() { const a = $('#kSort1').value || 'pos', b = $('#kSort2').value || 'pos'; $('#kSort1').innerHTML = KSORT.map(([k, l]) => `<option value="${k}"${k === a ? ' selected' : ''}>${t(l)}</option>`).join(''); $('#kSort2').innerHTML = KSORT.map(([k, l]) => `<option value="${k}"${k === b ? ' selected' : ''}>${k === 'pos' ? t('(después) posición') : t('después:') + ' ' + t(l)}</option>`).join(''); }
-function openKwic(w) { $('#kQ').value = w; switchTab('kwic'); runKwic(); }
+function openKwic(w) { $('#kMode').value = 'form'; $('#kQ').value = w; switchTab('kwic'); runKwic(); }
 function runKwic() {
-  const q = $('#kQ').value.trim(); if (!q) return; const set = resolveTerm(A, q); const k = clamp(+$('#kCtx').value || 8, 1, 40); const {ids, offs, lens, text, N, words} = A; KW = []; const forms = new Map();
-  for (let i = 0; i < N; i++) if (set.has(ids[i])) {
-    const a = Math.max(0, i - k), b = Math.min(N - 1, i + k);
-    const tok = j => j >= 0 && j < N ? words[ids[j]] : '';
-    KW.push({i, lem: A.lemmas ? (A.lemNone && A.lemNone[i] ? '—' : A.lemmas[i]) + (A.pos ? ' · ' + A.pos[i] : '') : (A.pos ? A.pos[i] : ''), ref: refFor(A, i), L: i === a ? '' : text.slice(offs[a], offs[i]).replace(/\s+/g, ' '), C: text.slice(offs[i], offs[i] + lens[i]), R: i === b ? '' : text.slice(offs[i] + lens[i], offs[b] + lens[b]).replace(/\s+/g, ' '), L1: tok(i - 1), L2: tok(i - 2), L3: tok(i - 3), R1: tok(i + 1), R2: tok(i + 2), R3: tok(i + 3), Ck: words[ids[i]]});
-    forms.set(words[ids[i]], (forms.get(words[ids[i]]) || 0) + 1);
+  const q=$('#kQ').value.trim(); if(!q)return;
+  const k=clamp(+$('#kCtx').value||8,1,40),{ids,offs,lens,text,N,words}=A;
+  let pat;
+  try { pat=compileKwicQuery(A,q,$('#kMode').value); $('#kCount').title=''; }
+  catch(e){$('#kCount').textContent=e.message;$('#kTable').innerHTML='';return;}
+  KW=[];const forms=new Map();
+  for(let i=0;i<N;i++) if(pat.match(i)) {
+    const last=i+pat.len-1, a=Math.max(0,i-k),b=Math.min(N-1,last+k);
+    const tok=j=>j>=0&&j<N?words[ids[j]]:'';
+    const cText=text.slice(offs[i],offs[last]+lens[last]);
+    KW.push({i,lem:A.lemmas?(A.lemNone&&A.lemNone[i]?'—':A.lemmas[i])+(A.pos?' · '+A.pos[i]:''):(A.pos?A.pos[i]:''),ref:refFor(A,i),
+      L:i===a?'':text.slice(offs[a],offs[i]).replace(/\s+/g,' '), C:cText,
+      R:last===b?'':text.slice(offs[last]+lens[last],offs[b]+lens[b]).replace(/\s+/g,' '),
+      L1:tok(i-1),L2:tok(i-2),L3:tok(i-3),R1:tok(last+1),R2:tok(last+2),R3:tok(last+3),Ck:tok(i)});
+    forms.set(cText,(forms.get(cText)||0)+1);
   }
-  const s1 = $('#kSort1').value, s2 = $('#kSort2').value; const kf = (r, s) => s === 'pos' ? r.i : s === 'C' ? r.Ck : r[s];
-  const cmp = (x, y, s) => s === 'pos' ? x.i - y.i : String(kf(x, s)).localeCompare(String(kf(y, s)), LOCALE[LANG]);
-  KW.sort((x, y) => cmp(x, y, s1) || cmp(x, y, s2) || x.i - y.i);
-  $('#kCount').textContent = t('{0} apariciones', nf(KW.length)) + (KW.length > 2000 ? ' ' + t('(se muestran 2000)') : '');
-  $('#kForms').innerHTML = forms.size > 1 ? [...forms.entries()].sort((a, b) => b[1] - a[1]).map(([w, c]) => `<span class="pill">${esc(w)} ${nf(c)}</span>`).join('') : '';
-  $('#kTable').innerHTML = KW.length ? '<tbody>' + KW.slice(0, 2000).map(r => `<tr><td class="ref">${esc(r.ref)}</td><td class="l"><span>${esc(r.L)}</span></td><td class="c">${esc(r.C)}</td><td class="r">${esc(r.R)}</td>${A.lemmas || A.pos ? `<td class="lm">${esc(r.lem)}</td>` : ''}</tr>`).join('') + '</tbody>' : `<tbody><tr><td class="empty">${t('Sin resultados.')}</td></tr></tbody>`;
+  const s1=$('#kSort1').value,s2=$('#kSort2').value,kf=(r,s)=>s==='pos'?r.i:s==='C'?r.Ck:r[s];
+  const cmp=(x,y,s)=>s==='pos'?x.i-y.i:String(kf(x,s)).localeCompare(String(kf(y,s)),LOCALE[LANG]);
+  KW.sort((x,y)=>cmp(x,y,s1)||cmp(x,y,s2)||x.i-y.i);
+  $('#kCount').textContent=t('{0} apariciones',nf(KW.length))+(KW.length>2000?' '+t('(se muestran 2000)'):'');
+  $('#kForms').innerHTML=forms.size>1?[...forms.entries()].sort((a,b)=>b[1]-a[1]).slice(0,80).map(([w,c])=>`<span class="pill">${esc(w)} ${nf(c)}</span>`).join(''):'';
+  $('#kTable').innerHTML=KW.length?'<tbody>'+KW.slice(0,2000).map(r=>`<tr><td class="ref">${esc(r.ref)}</td><td class="l"><span>${esc(r.L)}</span></td><td class="c">${esc(r.C)}</td><td class="r">${esc(r.R)}</td>${A.lemmas||A.pos?`<td class="lm">${esc(r.lem)}</td>`:''}</tr>`).join('')+'</tbody>':`<tbody><tr><td class="empty">${t('Sin resultados.')}</td></tr></tbody>`;
 }
-$('#kGo').onclick = runKwic; $('#kQ').addEventListener('keydown', e => { if (e.key === 'Enter') runKwic(); }); ['#kSort1', '#kSort2', '#kCtx'].forEach(s => $(s).onchange = runKwic);
+$('#kGo').onclick = runKwic; $('#kQ').addEventListener('keydown', e => { if (e.key === 'Enter') runKwic(); }); ['#kSort1', '#kSort2', '#kCtx', '#kMode'].forEach(s => $(s).onchange = runKwic);
 dlButtons($('#dlKwic'), () => slug(A.name) + '_concordancias', () => ({header: [t('posición (token)'), t('referencia'), t('izquierda'), t('palabra'), t('derecha'), ...(A.lemmas || A.pos ? [t('lema / categoría')] : [])], rows: KW.map(r => [r.i + 1, r.ref, r.L, r.C, r.R, ...(A.lemmas || A.pos ? [r.lem] : [])])}));
 
 /* ---------- colocados y red ---------- */
@@ -6468,6 +6546,7 @@ function renderCorpus() {
   const many = DOCS.length > 1; $('#compNeed').classList.toggle('hidden', many); $('#compBody').classList.toggle('hidden', !many); $('#keyNeed').classList.toggle('hidden', many); $('#keyBody').classList.toggle('hidden', !many);
   const styloOK = DOCS.length >= 3 || (DOCS.length >= 2); $('#styloNeed').classList.toggle('hidden', styloOK); $('#styloBody').classList.toggle('hidden', !styloOK);
   if (!many) return;
+  fillSubFields();
   const n0 = Math.min(...DOCS.map(d => d.N));
   $('#compDesc').textContent = t('{0} textos. Las medidas que dependen de la longitud se comparan mejor con la rarefacción a un tamaño común ({1} tokens, el del texto más corto) o con MATTR, MTLD y HD-D. Entre corchetes, IC 95 % por bootstrap si se ha calculado.', DOCS.length, nf(n0));
   renderCorpusTable();
@@ -6498,35 +6577,110 @@ $('#compBoot').onclick = async () => {
   $('#compBootStatus').textContent = t('IC con {0} réplicas.', B); renderCorpusTable(); renderMetricsTable(); renderVisible(); $('#compBoot').disabled = false;
 };
 
+/* Estadística 2x2: G² con ausencias explícitas, p asintótica χ²(1), y FDR BH. */
+function g2Table(a, b, nA, nB) {
+  const N = nA + nB, c = nA - a, d = nB - b, col = a + b, oth = N - col;
+  if (!N || !nA || !nB || col === 0 || oth === 0) return 0;
+  const xs = [a, c, b, d], es = [nA*col/N, nA*oth/N, nB*col/N, nB*oth/N];
+  return 2 * xs.reduce((sum, v, i) => sum + (v ? v * Math.log(v / es[i]) : 0), 0);
+}
+function erfcApprox(x) {
+  // Numerical Recipes, precisión absoluta aprox. 1.5e-7.
+  const z = Math.abs(x), t = 1 / (1 + 0.5 * z);
+  const v = t * Math.exp(-z*z - 1.26551223 + t*(1.00002368 + t*(0.37409196 + t*(0.09678418 + t*(-0.18628806 + t*(0.27886807 + t*(-1.13520398 + t*(1.48851587 + t*(-0.82215223 + t*0.17087277)))))))));
+  return x >= 0 ? v : 2 - v;
+}
+function chiP1(g) { return Math.max(0, Math.min(1, erfcApprox(Math.sqrt(Math.max(0,g) / 2)))); }
+function fdrBH(rows) {
+  const sorted = [...rows].sort((a,b) => a.p - b.p), m = sorted.length;
+  let next = 1;
+  for (let j = m - 1; j >= 0; j--) { next = Math.min(next, sorted[j].p * m / (j + 1)); sorted[j].q = next; }
+  return rows;
+}
+function keywordRows(fA, fB, nA, nB, minF=5, stops=null) {
+  if (!nA || !nB) return [];
+  const out = [];
+  for (const w of new Set([...fA.keys(), ...fB.keys()])) {
+    const a = fA.get(w)||0, b = fB.get(w)||0;
+    if (a+b < minF || (stops && stops.has(w))) continue;
+    const ll=g2Table(a,b,nA,nB), p=chiP1(ll), pA=a/nA, pB=b/nB;
+    out.push({w,a,b,pT:1e4*pA,pR:1e4*pB,ll,p,bic:ll-Math.log(nA+nB),diff:pB>0?100*(pA-pB)/pB:Infinity,lr:Math.log2(((a||0.5)/nA)/((b||0.5)/nB)),sign:pA>=pB?1:-1});
+  }
+  return fdrBH(out).sort((a,b)=>b.ll-a.ll);
+}
+/* =====================================================================
+   MÂZE 2.1: FILTRO DE SUBCORPUS
+   ===================================================================== */
+function metaValue(d,field) { return field==='author'?(d.meta?.author||d.cls):(d.meta?.[field]||''); }
+function groupDocs(value) {
+  if (!value || value==='__all__') return [];
+  return DOCS.map((d,i)=>i).filter(i=>metaValue(DOCS[i],$('#subField').value)===value);
+}
+function aggregateDocs(indices) {
+  const freq=new Map();let n=0;
+  for(const i of indices){const d=DOCS[i];n+=d.N;for(let j=0;j<d.V;j++)freq.set(d.words[j],(freq.get(d.words[j])||0)+d.freq[j]);}
+  return {freq,n,v:freq.size};
+}
+function subSelectionForStylo() {
+  if (!$('#subStyloUse').checked) return null;
+  const indices=[...new Set([...groupDocs($('#subA').value),...groupDocs($('#subB').value)])];
+  return indices.length>=2?indices:[];
+}
+function fillSubFields() {
+  const field=$('#subField').value, prevA=$('#subA').value,prevB=$('#subB').value;
+  const values=[...new Set(DOCS.map(d=>metaValue(d,field)))].filter(Boolean).sort((a,b)=>a.localeCompare(b));
+  const options=values.map(v=>`<option value="${esc(v)}">${esc(v)} (${DOCS.filter(d=>metaValue(d,field)===v).length})</option>`).join('');
+  $('#subA').innerHTML=$('#subB').innerHTML=options;
+  $('#subA').value=values.includes(prevA)?prevA:values[0]||'';
+  $('#subB').value=values.includes(prevB)&&prevB!==$('#subA').value?prevB:values.find(v=>v!==$('#subA').value)||'';
+  $('#subDesc').textContent=values.length<2?'Necesitas al menos dos valores distintos de este campo. Completa las fichas de los textos y vuelve a analizar.':'';
+  $('#subGo').disabled=values.length<2;
+}
+function runSubcorpus() {
+  const ia=groupDocs($('#subA').value),ib=groupDocs($('#subB').value);
+  if(!ia.length||!ib.length||ia.some(i=>ib.includes(i))){$('#subResults').innerHTML='<p class="warnbox">Elige dos grupos distintos y no vacíos.</p>';return;}
+  const a=aggregateDocs(ia),b=aggregateDocs(ib), rows=keywordRows(a.freq,b.freq,a.n,b.n,2);
+  const head='<thead><tr><th>Palabra</th><th class="num">A</th><th class="num">B</th><th class="num">A / 10 000</th><th class="num">B / 10 000</th><th class="num">log₂ ratio</th><th class="num">G²</th><th class="num">q (FDR)</th></tr></thead>';
+  const significant=rows.filter(r=>r.q<.05).slice(0,100);
+  $('#subResults').innerHTML=`<div class="tiles"><div class="tile"><div class="k">Grupo A · ${esc($('#subA').value)}</div><div class="v">${nf(a.n)}</div><div class="n">${ia.length} textos · ${nf(a.v)} tipos · TTR ${nf(a.v/a.n,3)}</div></div><div class="tile"><div class="k">Grupo B · ${esc($('#subB').value)}</div><div class="v">${nf(b.n)}</div><div class="n">${ib.length} textos · ${nf(b.v)} tipos · TTR ${nf(b.v/b.n,3)}</div></div></div>`+
+    `<p class="note">A: ${esc(ia.map(i=>baseName(DOCS[i].name)).join(', '))}. B: ${esc(ib.map(i=>baseName(DOCS[i].name)).join(', '))}. ${rows.length} pruebas; ${rows.filter(r=>r.q<.05).length} palabras con q &lt; 0,05. TTR no comparable si los grupos tienen tamaños diferentes.</p>`+
+    `<div class="scroll sm"><table>${head}<tbody>${significant.map(r=>`<tr><td>${esc(r.w)}</td><td class="num">${nf(r.a)}</td><td class="num">${nf(r.b)}</td><td class="num">${nf(r.pT,2)}</td><td class="num">${nf(r.pR,2)}</td><td class="num">${nf(r.lr,2)}</td><td class="num">${nf(r.ll,2)}</td><td class="num">${nf(r.q,5)}</td></tr>`).join('')||'<tr><td colspan="8" class="empty">No hay diferencias que superen FDR q &lt; 0,05.</td></tr>'}</tbody></table></div>`;
+}
+$('#subField').onchange=()=>{fillSubFields();$('#subResults').innerHTML='';};
+$('#subGo').onclick=runSubcorpus;
+$('#subA').onchange=()=>{$('#subResults').innerHTML='';};
+$('#subB').onchange=()=>{$('#subResults').innerHTML='';};
+
 /* ---------- keyness ---------- */
 function freqMap(R) { const m = new Map(); for (let i = 0; i < R.V; i++) m.set(R.words[i], R.freq[i]); return m; }
 function runKeyness() {
-  const ti = +$('#kTarget').value, rv = $('#kRef').value; const T = DOCS[ti]; const refs = rv === 'rest' ? DOCS.filter((d, i) => i !== ti) : [DOCS[+rv]];
-  if (!refs.length || (rv !== 'rest' && +rv === ti)) { KEY = {err: t('Elige un texto de referencia distinto del objetivo.')}; renderKeyTables(); return; }
-  const fT = freqMap(T), fR = new Map(); let NR = 0; refs.forEach(r => { NR += r.N; for (let i = 0; i < r.V; i++) fR.set(r.words[i], (fR.get(r.words[i]) || 0) + r.freq[i]); });
-  const NT = T.N, minF = Math.max(1, +$('#kMin').value || 5), thr = +$('#kP').value, noStop = $('#kStop').checked; const stops = stopSet(OPTS.lang, OPTS.extraStop, OPTS.stopOnly);
-  const words = new Set([...fT.keys(), ...fR.keys()]); const out = [];
-  for (const w of words) { const a = fT.get(w) || 0, b = fR.get(w) || 0; if (a + b < minF || (noStop && stops.has(w))) continue;
-    const E1 = NT * (a + b) / (NT + NR), E2 = NR * (a + b) / (NT + NR); const ll = 2 * ((a ? a * Math.log(a / E1) : 0) + (b ? b * Math.log(b / E2) : 0)); if (ll < thr) continue;
-    const pT = a / NT, pR = b / NR; out.push({w, a, b, pT: 1e4 * pT, pR: 1e4 * pR, ll, bic: ll - Math.log(NT + NR), diff: pR > 0 ? 100 * (pT - pR) / pR : Infinity, lr: Math.log2(((a || 0.5) / NT) / ((b || 0.5) / NR)), sign: pT >= pR ? 1 : -1}); }
-  out.sort((x, y) => y.ll - x.ll); KEY = {pos: out.filter(r => r.sign > 0), neg: out.filter(r => r.sign < 0), T: baseName(T.name), R: rv === 'rest' ? null : baseName(DOCS[+rv].name)};
+  const ti=+$('#kTarget').value, rv=$('#kRef').value, T=DOCS[ti];
+  const refs=rv==='rest' ? DOCS.filter((d,i)=>i!==ti) : [DOCS[+rv]];
+  if (!T || !refs.length || (rv!=='rest' && +rv===ti)) { KEY={err:t('Elige un texto de referencia distinto del objetivo.')}; renderKeyTables(); return; }
+  const fT=freqMap(T), fR=new Map(); let NR=0;
+  refs.forEach(r=>{NR+=r.N; for(let i=0;i<r.V;i++) fR.set(r.words[i], (fR.get(r.words[i])||0)+r.freq[i]);});
+  const noStop=$('#kStop').checked, stops=noStop?stopSet(OPTS.lang, OPTS.extraStop):null;
+  const rows=keywordRows(fT,fR,T.N,NR,Math.max(1,+$('#kMin').value||5),stops);
+  const mode=$('#kP').value;
+  const out=rows.filter(r=>mode==='fdr01'?r.q<.01:mode==='fdr05'?r.q<.05:mode==='p01'?r.p<.01:r.p<.05);
+  KEY={pos:out.filter(r=>r.sign>0),neg:out.filter(r=>r.sign<0), tests:rows.length,mode,T:baseName(T.name),R:rv==='rest'?t('resto del corpus'):baseName(DOCS[+rv].name)};
   renderKeyTables(); renderVisible();
 }
 function renderKeyTables() {
-  const head = `<thead><tr><th>#</th><th>${t('Palabra')}</th><th class="num">${t('Frec. obj.')}</th><th class="num">${t('Frec. ref.')}</th><th class="num">${t('obj. /10k')}</th><th class="num">${t('ref. /10k')}</th><th class="num">G²</th><th class="num">BIC</th><th class="num">%DIFF</th><th class="num">${t('Log ratio')}</th></tr></thead><tbody>`;
-  const row = (r, i) => `<tr><td class="num">${i + 1}</td><td>${esc(r.w)}</td><td class="num">${nf(r.a)}</td><td class="num">${nf(r.b)}</td><td class="num">${nf(r.pT, 2)}</td><td class="num">${nf(r.pR, 2)}</td><td class="num">${nf(r.ll, 1)}</td><td class="num">${nf(r.bic, 1)}</td><td class="num">${isFinite(r.diff) ? nf(r.diff, 1) : '∞'}</td><td class="num">${nf(r.lr, 2)}</td></tr>`;
+  const head = `<thead><tr><th>#</th><th>${t('Palabra')}</th><th class="num">${t('Frec. obj.')}</th><th class="num">${t('Frec. ref.')}</th><th class="num">${t('obj. /10k')}</th><th class="num">${t('ref. /10k')}</th><th class="num">G²</th><th class="num">p</th><th class="num">q (FDR)</th><th class="num">BIC</th><th class="num">%DIFF</th><th class="num">${t('Log ratio')}</th></tr></thead><tbody>`;
+  const row = (r, i) => `<tr><td class="num">${i + 1}</td><td>${esc(r.w)}</td><td class="num">${nf(r.a)}</td><td class="num">${nf(r.b)}</td><td class="num">${nf(r.pT, 2)}</td><td class="num">${nf(r.pR, 2)}</td><td class="num">${nf(r.ll, 1)}</td><td class="num">${nf(r.p, 5)}</td><td class="num">${nf(r.q, 5)}</td><td class="num">${nf(r.bic, 1)}</td><td class="num">${isFinite(r.diff) ? nf(r.diff, 1) : '∞'}</td><td class="num">${nf(r.lr, 2)}</td></tr>`;
   if (!KEY || KEY.err) { $('#keyPos').innerHTML = $('#keyNeg').innerHTML = `<tbody><tr><td class="empty">${esc(KEY ? KEY.err : '')}</td></tr></tbody>`; return; }
-  $('#keyPos').innerHTML = head + (KEY.pos.length ? KEY.pos.slice(0, 500).map(row).join('') : `<tr><td colspan="10" class="empty">${t('Ninguna palabra supera el umbral.')}</td></tr>`) + '</tbody>';
-  $('#keyNeg').innerHTML = head + (KEY.neg.length ? KEY.neg.slice(0, 500).map(row).join('') : `<tr><td colspan="10" class="empty">${t('Ninguna palabra supera el umbral.')}</td></tr>`) + '</tbody>';
+  $('#keyPos').innerHTML = head + (KEY.pos.length ? KEY.pos.slice(0, 500).map(row).join('') : `<tr><td colspan="12" class="empty">${t('Ninguna palabra supera el umbral.')}</td></tr>`) + '</tbody>';
+  $('#keyNeg').innerHTML = head + (KEY.neg.length ? KEY.neg.slice(0, 500).map(row).join('') : `<tr><td colspan="12" class="empty">${t('Ninguna palabra supera el umbral.')}</td></tr>`) + '</tbody>';
 }
 function drawKeyChart(el) {
   if (!KEY || KEY.err) return emptyChart(el, KEY ? KEY.err : t('Pulsa «Calcular».'));
   const p = KEY.pos.slice(0, 15).sort((a, b) => b.lr - a.lr), n = KEY.neg.slice(0, 15).sort((a, b) => b.lr - a.lr);
-  const rows = [...p, ...n].map(r => ({label: r.w, v: r.lr, tip: `<b>${esc(r.w)}</b><br>${t('log ratio')}: <b>${nf(r.lr, 2)}</b><br>G²: <b>${nf(r.ll, 1)}</b><br>${esc(KEY.T)}: ${nf(r.a)} (${nf(r.pT, 2)} /10k)<br>${esc((KEY.R || t('resto del corpus')))}: ${nf(r.b)} (${nf(r.pR, 2)} /10k)`}));
-  hbarDiverging(el, rows, {xLabel: t('log ratio (log₂ del cociente de frecuencias relativas); 15 palabras clave positivas y 15 negativas con mayor G²'), posLabel: t('más en {0}', KEY.T), negLabel: t('más en {0}', (KEY.R || t('resto del corpus')))});
+  const rows = [...p, ...n].map(r => ({label: r.w, v: r.lr, tip: `<b>${esc(r.w)}</b><br>${t('log ratio')}: <b>${nf(r.lr, 2)}</b><br>G²: <b>${nf(r.ll, 1)}</b><br>${esc(KEY.T)}: ${nf(r.a)} (${nf(r.pT, 2)} /10k)<br>${esc(KEY.R)}: ${nf(r.b)} (${nf(r.pR, 2)} /10k)`}));
+  hbarDiverging(el, rows, {xLabel: t('log ratio (log₂ del cociente de frecuencias relativas); 15 palabras clave positivas y 15 negativas con mayor G²'), posLabel: t('más en {0}', KEY.T), negLabel: t('más en {0}', KEY.R)});
 }
 $('#keyGo').onclick = runKeyness; ['#kTarget', '#kRef', '#kP', '#kStop'].forEach(s => $(s).onchange = runKeyness);
-dlButtons($('#dlKey'), () => 'keyness_' + slug(KEY && KEY.T || ''), () => KEY && !KEY.err && {header: [t('palabra'), t('signo'), t('frec. objetivo'), t('frec. referencia'), t('objetivo por 10 000'), t('referencia por 10 000'), 'G2', 'BIC', '%DIFF', 'log ratio'], rows: [...KEY.pos, ...KEY.neg].map(r => [r.w, r.sign > 0 ? '+' : '-', r.a, r.b, r.pT, r.pR, r.ll, r.bic, isFinite(r.diff) ? r.diff : '', r.lr])});
+dlButtons($('#dlKey'), () => 'keyness_' + slug(KEY && KEY.T || ''), () => KEY && !KEY.err && {header: [t('palabra'), t('signo'), t('frec. objetivo'), t('frec. referencia'), t('objetivo por 10 000'), t('referencia por 10 000'), 'G2', 'p', 'q_FDR', 'BIC', '%DIFF', 'log ratio'], rows: [...KEY.pos, ...KEY.neg].map(r => [r.w, r.sign > 0 ? '+' : '-', r.a, r.b, r.pT, r.pR, r.ll, r.p, r.q, r.bic, isFinite(r.diff) ? r.diff : '', r.lr])});
 
 /* ---------- estilometría ---------- */
 function classColorFn(classes) { const T = theme(); const uniq = [...new Set(classes)]; return i => { const k = uniq.indexOf(classes[i]); return UNKNOWN_RE.test(classes[i]) ? T.text2 : k < 8 ? T.s[k] : T.muted; }; }
@@ -6535,14 +6689,16 @@ function styloExcl() {
   if ($('#sNoNames').checked) DOCS.forEach(d => (d.names || []).forEach(w => { if (!ex.has(w)) { ex.add(w); nNames++; } }));
   return {list: [...ex], nNames};
 }
+$('#sLink').onchange=()=>{if($('#sLink').value==='ward' && $('#sDist').value!=='euclidean') { $('#sDist').value='euclidean'; $('#styloStatus').textContent='Ward: se ha seleccionado distancia euclídea.'; }};
 $('#styloGo').onclick = async () => {
-  const so = {mfw: clamp(+$('#sMfw').value || 100, 10, 5000), cull: clamp(+$('#sCull').value || 0, 0, 100), dist: $('#sDist').value, linkage: $('#sLink').value, sample: Math.max(0, +$('#sSample').value || 0)}; const EX = styloExcl(); so.excl = EX.list;
+  const so = {indices: subSelectionForStylo(), mfw: clamp(+$('#sMfw').value || 100, 10, 5000), cull: clamp(+$('#sCull').value || 0, 0, 100), dist: $('#sDist').value, linkage: $('#sLink').value, sample: Math.max(0, +$('#sSample').value || 0)}; const EX = styloExcl(); so.excl = EX.list;
+  if (so.linkage==='ward' && so.dist!=='euclidean') { $('#styloStatus').textContent='Ward requiere distancia euclídea.'; return; }
   $('#styloGo').disabled = true; $('#styloStatus').textContent = t('Calculando…');
   try { STYLO = await runTask('stylo', so, p => $('#styloStatus').textContent = t('Calculando…') + ' ' + Math.round(100 * p.progress) + ' %'); $('#styloStatus').textContent = t('{0} muestras, {1} rasgos.', STYLO.labels.length, STYLO.feats.length) + (EX.list.length ? ' ' + t('{0} palabras excluidas ({1} nombres propios).', EX.list.length, EX.nNames) : ''); $('#styloOut').classList.remove('hidden'); renderStylo(); renderVisible(); }
   catch (e) { $('#styloStatus').textContent = t(e.message); }
   $('#styloGo').disabled = false;
 };
-const DISTNAMES = {cosine: 'Delta del coseno', burrows: 'Delta clásica (Burrows)', eder: 'Delta de Eder', argamon: 'Delta cuadrática (Argamon)'};
+const DISTNAMES = {euclidean: 'Euclídea', cosine: 'Delta del coseno', burrows: 'Delta clásica (Burrows)', eder: 'Delta de Eder', argamon: 'Delta cuadrática (Argamon)'};
 const LINKNAMES = {ward: 'Ward', average: 'media (UPGMA)', complete: 'completo', single: 'simple'};
 function renderStylo() {
   const S = STYLO; const cc = classColorFn(S.classes); const uniq = [...new Set(S.classes)];
@@ -6594,14 +6750,14 @@ function drawRolling(el) {
    ===================================================================== */
 function docSummary(d) {
   const st = stats(d.counts.sentLens);
-  return {archivo: d.name, formato: d.kind, clase: d.cls, tokens: d.N, tipos: d.V, oraciones: d.nSent, palabras_por_oracion: st.mean, longitud_media_palabra: d.counts.meanWL,
+  return {archivo: d.name, formato: d.kind, clase: d.cls, metadatos: d.meta||{}, archivo_origen: d.sourceFile, tokens: d.N, tipos: d.V, oraciones: d.nSent, palabras_por_oracion: st.mean, longitud_media_palabra: d.counts.meanWL,
     riqueza_lexica: Object.fromEntries(d.metrics.map(m => [m.id, m.v])), ic95: BOOT[DOCS.indexOf(d)] ? BOOT[DOCS.indexOf(d)].ci : null,
     zipf: {alpha: d.zipf.alpha, C: d.zipf.C, r2: d.zipf.r2, mandelbrot: d.zipf.zm, mv: d.plaw ? {beta: d.plaw.beta, alpha: d.plaw.alpha, xmin: d.plaw.xmin, ks: d.plaw.D, n: d.plaw.n} : null},
     heaps: {beta: d.heaps.beta, K: d.heaps.K, r2: d.heaps.r2}, chao1: d.rare.chao1, abreviacion_rho: d.abbr.rho, menzerath: {oracion: d.menz.sent.fit, linea: d.menz.line ? d.menz.line.fit : null},
     legibilidad: Object.fromEntries(d.read.map(r => [r[0], r[1]])), lexico: lexSummary(d), segmentos: d.segStats, espectro: Object.fromEntries([...d.spec.entries()].sort((a, b) => a[0] - b[0]).slice(0, 50)), top100: d.order.slice(0, 100).map(i => [d.words[i], d.freq[i]])};
 }
 function cleanOpts() { const o = {...OPTS}; return o; }
-$('#expJson').onclick = () => download('maze.json', JSON.stringify({aplicacion: 'Mâze', version: APP_VERSION, fecha: new Date().toISOString(), opciones: cleanOpts(), textos: DOCS.map(docSummary), estilometria: STYLO ? {opciones: STYLO.so, etiquetas: STYLO.labels, clases: STYLO.classes, rasgos: STYLO.feats, distancias: STYLO.D, precision_vecino: STYLO.cls.nnAcc, precision_centroide: STYLO.cls.ceAcc} : null}, null, 2), 'application/json');
+$('#expJson').onclick = () => download('maze.json', JSON.stringify({aplicacion: 'Mâze', version: APP_VERSION, fecha: new Date().toISOString(), opciones: cleanOpts(), textos: DOCS.map(docSummary), subcorpus: {campo: $('#subField').value, grupoA: $('#subA').value, grupoB: $('#subB').value}, estilometria: STYLO ? {opciones: STYLO.so, etiquetas: STYLO.labels, clases: STYLO.classes, rasgos: STYLO.feats, distancias: STYLO.D, precision_vecino: STYLO.cls.nnAcc, precision_centroide: STYLO.cls.ceAcc} : null}, null, 2), 'application/json');
 $('#expXlsx').onclick = () => {
   const sheets = []; const rows = compRows();
   sheets.push({name: t('Métricas'), rows: [[t('medida'), ...DOCS.map(d => baseName(d.name))], ...rows.map(r => [t(r[0]), ...DOCS.map(r[1])]), [], [t('Parámetros'), JSON.stringify(cleanOpts())], [t('Versión'), APP_VERSION]]});
@@ -6618,6 +6774,7 @@ function buildReport() {
   let h = `<!DOCTYPE html><html lang="${LANG}"><head><meta charset="utf-8"><title>${esc(t('Informe de Mâze'))}</title><style>body{font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#0b0b0b;max-width:960px;margin:30px auto;padding:0 20px}h1{font-size:22px;margin:0}h2{font-size:17px;margin:28px 0 8px;border-bottom:1px solid #e1dfd8;padding-bottom:4px}h3{font-size:14px;margin:18px 0 6px}table{border-collapse:collapse;width:100%;font-size:12.5px;margin:6px 0 12px}th,td{border-bottom:1px solid #e9e7e1;padding:4px 6px;text-align:left;vertical-align:top}th{color:#52514e}td.num{text-align:right;font-variant-numeric:tabular-nums}.meta{color:#52514e;font-size:13px}.legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:#52514e;margin:4px 0}.legend .sw{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-2px}.legend .ln{display:inline-block;width:16px;border-top:2px solid;margin-right:5px;vertical-align:3px}svg{max-width:100%;height:auto;display:block;margin:6px 0 14px}pre{background:#f0efea;padding:8px;font-size:12px;white-space:pre-wrap}@media print{h2{break-after:avoid}svg,table{break-inside:avoid}}</style></head><body>`;
   h += `<h1>${esc(t('Informe de Mâze'))}</h1><p class="meta">${esc(t('Generado el {0} con Mâze {1}.', date, APP_VERSION))}</p>`;
   h += `<h2>${esc(t('Corpus y parámetros'))}</h2>` + tbl([t('Archivo'), t('Formato'), t('Clase'), t('Tokens'), t('Tipos'), t('Segmentos')], DOCS.map(d => [esc(d.name), esc(t(KINDS[d.kind])), esc(d.cls), nf(d.N), nf(d.V), nf(d.seg.labels.length) + ' (' + esc(t(SEGMODES[d.seg.mode])) + ')']));
+  if (DOCS.some(d=>d.meta&&Object.values(d.meta).some(Boolean))) h += `<h3>Metadatos bibliográficos</h3>` + tbl(['Archivo',...META_FIELDS.map(([,label])=>label)],DOCS.map(d=>[esc(baseName(d.name)),...META_FIELDS.map(([key])=>esc(d.meta?.[key]||''))]));
   h += tbl([t('Parámetro'), t('Valor')], [[t('Lengua'), o.lang], [t('Unidad'), o.unit], [t('Minúsculas'), o.lower ? '✓' : '—'], [t('Números'), o.nums ? '✓' : '—'], [t('Apóstrofo / guion interno'), (o.apos ? '✓' : '—') + ' / ' + (o.hyph ? '✓' : '—')], [t('ſ → s / quitar diacríticos'), (o.longS ? '✓' : '—') + ' / ' + (o.stripMarks ? '✓' : '—')], [t('Ventana MATTR / segmento MSTTR / partes'), `${o.win} / ${o.seg} / ${o.parts}`], [t('Segmentación'), esc(t(SEGMODES[o.segMode]) + (o.segMode === 'regex' ? ': ' + o.segRegex : ''))], [t('Palabras vacías adicionales'), esc(o.extraStop || '—')]]);
   if (o.rules.trim()) h += `<h3>${esc(t('Reglas de normalización'))}</h3><pre>${esc(o.rules)}</pre>`;
   if (DOCS.length > 1) {
@@ -6659,7 +6816,7 @@ function translateStatic() {
     n.nodeValue = o.match(/^\s*/)[0] + tr + o.match(/\s*$/)[0];
   }
   for (const [el, a, o] of STATIC_ATTR) { const tr = LANG === 'es' ? o : (DICT[LANG] && DICT[LANG][o]); el.setAttribute(a, tr == null ? o : tr); if (tr == null) MISS_STATIC.add(o); }
-  document.documentElement.lang = LANG; { const o = document.querySelector('#kRef option[value="rest"]'); if (o) o.textContent = t('resto del corpus'); } document.title = EDITION === 'mhd' ? t('Mâze mhd. · Lectura distante del alto alemán medio') : EDITION === 'esmed' ? t('Mâze esp. med. · Lectura distante del español medieval') : t('Mâze · Lectura distante y análisis cuantitativo de textos');
+  document.documentElement.lang = LANG; document.title = EDITION === 'mhd' ? t('Mâze mhd. · Lectura distante del alto alemán medio') : EDITION === 'esmed' ? t('Mâze esp. med. · Lectura distante del español medieval') : t('Mâze · Lectura distante y análisis cuantitativo de textos');
 }
 function setLang(l) {
   LANG = l; try { localStorage.setItem('dr-lang', l); } catch (e) {} $('#uiLang').value = l; translateStatic(); renderHelp(); fillKSort(); renderProfiles($('#profileSel').value);
@@ -6852,7 +7009,7 @@ $('#lexFile').onchange = async e => {
 $('#lang').addEventListener('change', () => {
   const l = $('#lang').value; $('#lexNegWords').value = NEGATORS[l] || '';
   if (l === 'osp') { $('#optLongS').checked = true; setStatus(t('Perfil de español medieval: ſ → s, palabras vacías y negaciones del español medieval, y análisis de asonancia y tiradas en verso. Hay una plantilla de normalización en las opciones.')); }
-  if (l === 'gmh') { $('#optLongS').checked = true; setStatus(t('Perfil de alto alemán medio: ſ → s, lematización con el ReM, rimas normalizadas con @norm en TEI y SentiMhd 2 en la pestaña Léxicos.')); }
+  if (l === 'gmh') { $('#optLongS').checked = true; $('#teiLayer').value = 'norm'; setStatus(t('Perfil de alto alemán medio: ſ → s, capa normalizada (@norm) para TEI y SentiMhd 2 en la pestaña Léxicos.')); }
 });
 $('#lexNegWords').value = NEGATORS[$('#lang').value] || '';
 
@@ -7129,7 +7286,7 @@ const anotAgain = () => { ANOT.page = 0; renderAnotText(); };
 let aqT; $('#aQ').addEventListener('input', () => { clearTimeout(aqT); aqT = setTimeout(anotAgain, 250); });
 $('#aPrev').onclick = () => { ANOT.page--; renderAnotText(); $('#anotText').scrollIntoView({block: 'nearest'}); };
 $('#aNext').onclick = () => { ANOT.page++; renderAnotText(); $('#anotText').scrollIntoView({block: 'nearest'}); };
-$('#anotText').addEventListener('click', e => { const tk = e.target.closest('.tk'); if (!tk) return; const i = +tk.dataset.i; $('#kQ').value = A.words[A.ids[i]]; switchTab('kwic'); runKwic(); });
+$('#anotText').addEventListener('click', e => { const tk = e.target.closest('.tk'); if (!tk) return; const i = +tk.dataset.i; $('#kMode').value = 'form'; $('#kQ').value = A.words[A.ids[i]]; switchTab('kwic'); runKwic(); });
 ['#lfMulti', '#lfSort'].forEach(s => $(s).onchange = renderLemmaTable); let lfT; $('#lfQ').addEventListener('input', () => { clearTimeout(lfT); lfT = setTimeout(renderLemmaTable, 250); });
 $('#lfTable').addEventListener('click', e => { const a = e.target.closest('[data-lem]'); if (!a) return; e.preventDefault(); $('#aField').value = 'lemma'; $('#aQ').value = a.dataset.lem; $('#aOnly').checked = true; anotAgain(); $('#anotText').scrollIntoView({block: 'start'}); });
 $('#flTable').addEventListener('click', e => { const a = e.target.closest('[data-form]'); if (!a) return; e.preventDefault(); $('#aField').value = 'form'; $('#aQ').value = a.dataset.form; $('#aOnly').checked = true; anotAgain(); $('#anotText').scrollIntoView({block: 'start'}); });
@@ -7146,7 +7303,7 @@ dlButtons($('#dlFL'), () => slug(A.name) + '_formas_ambiguas', () => ({header: [
     $('#subTitle').textContent = 'Lectura distante y análisis cuantitativo de textos en alto alemán medio';
     const a = $('#edLink'); a.href = '../'; a.textContent = 'Edición general'; a.title = 'Mâze para textos en cualquier lengua';
     $('#lang').value = 'gmh'; $('#langOpt').hidden = true; $('#readCard').hidden = true;
-    $('#optLongS').checked = true; $('#teiLayer').value = 'reg';
+    $('#optLongS').checked = true; $('#teiLayer').value = 'norm';
     const p2f = profileToForm; profileToForm = o => { p2f(o); $('#lang').value = 'gmh'; };
   }
   if (EDITION === 'esmed') {
@@ -7159,8 +7316,7 @@ dlButtons($('#dlFL'), () => slug(A.name) + '_formas_ambiguas', () => ({header: [
     $$('code').forEach(c => { if (c.textContent === 'ritter*') c.textContent = 'cauall*'; else if (c.textContent === 'minn*') c.textContent = 'señ*'; });
     $('#segRegex').placeholder = 'p. ej. ^(Cantar|Capítulo|Tirada)\\b';
   }
-  if (STANDALONE === 'hub') { const a = $('#edLink'); a.hidden = false; a.href = '../'; a.textContent = 'Todas las ediciones'; a.title = 'Portada de Mâze con todas las ediciones'; }
-  else if (STANDALONE) $('#edLink').hidden = true;
+  if (STANDALONE) $('#edLink').hidden = true;
   fillKSort(); renderProfiles(''); initWorker(); setLang(l);
   if (EDITION === 'mhd') $('#lexNegWords').value = NEGATORS.gmh || '';
   if (EDITION === 'esmed') $('#lexNegWords').value = NEGATORS.osp || '';
