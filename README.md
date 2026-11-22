@@ -8,18 +8,10 @@ Es un único archivo `index.html`, sin dependencias externas. Todo el cálculo s
 
 En alto alemán medio, *mâze* (también *mâȥe*) significa «medida, proporción», y *diu mâze* es la mesura, la virtud cortesana del equilibrio y la justa medida. La aplicación mide textos y busca en ellos proporciones; el nombre une ese sentido literal con la tradición de la que proceden los textos para los que está pensada.
 
-Escríbase siempre con circunflejo, *Mâze*: sin él, en inglés se lee *maze*, «laberinto».
-
 ## Uso
 
 - **En línea**: `https://javiermunoz-acebes.github.io/maze-mhd/`.
 - **En local**: descarga `index.html` y ábrelo con el navegador. No necesita instalación ni conexión.
-
-### Publicar en GitHub Pages
-
-1. Crea un repositorio llamado `maze-mhd` y sube a su raíz `index.html`, `README.md` y `CITATION.cff`.
-2. En **Settings → Pages → Build and deployment**, elige *Deploy from a branch*, rama `main`, carpeta `/ (root)`.
-3. La aplicación quedará en `https://javiermunoz-acebes.github.io/maze-mhd/`.
 
 ## Configuración para el alto alemán medio
 
@@ -133,14 +125,5 @@ Si publicas resultados obtenidos con SentiMhd 2 o con la lematización del ReM, 
 - Palabras vacías propias desde un archivo, con la opción de usar solo esa lista.
 - La interfaz completa está traducida al alemán y al inglés.
 
-## Cómo citar
-
-El archivo `CITATION.cff` permite que GitHub muestre el botón *Cite this repository*. Para obtener un DOI permanente:
-
-1. Conecta la cuenta de GitHub en <https://zenodo.org> y activa el repositorio en *GitHub → Repositories*.
-2. Crea una *release* en GitHub (p. ej. `v2.2.0`): Zenodo la archiva y le asigna un DOI.
-3. Añade el DOI a `CITATION.cff` (campo `doi:`) y a este README.
-
-## Licencia
 
 El código de Mâze se publica con licencia MIT (véase `LICENSE`). Los datos incluidos conservan sus licencias: CC BY 4.0 (SentiMhd 2) y CC BY-SA 4.0 (tabla del ReM).
