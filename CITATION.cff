@@ -3,8 +3,8 @@ message: "Si usas Mâze mhd. en una publicación, cítala así."
 title: "Mâze mhd.: lectura distante y análisis cuantitativo de textos en alto alemán medio"
 abstract: "Aplicación web estática para el análisis cuantitativo de textos en alto alemán medio: frecuencias, riqueza léxica, leyes de Zipf y Heaps, verso y rima, concordancias y colocaciones, keyness, estilometría (Delta, Rolling Delta) y análisis de sentimiento con SentiMhd 2, a partir de TXT, TEI-XML (incluidas ediciones de heiEDITIONS), CoNLL-U o TSV/VRT. El nombre procede del mhd. mâze, «medida, mesura»."
 type: software
-version: "2.0.0"
-date-released: 2026-11-15
+version: 2.2.0
+date-released: 2026-11-22
 authors:
   - family-names: "Muñoz-Acebes"
     given-names: "Francisco Javier"
@@ -13,19 +13,17 @@ authors:
 keywords:
   - Middle High German
   - Mittelhochdeutsch
-  - alto alemán medio
   - distant reading
   - digital humanities
   - computational philology
-  - historical linguistics
   - stylometry
   - sentiment analysis
+  - lemmatization
   - lexical richness
-  - corpus linguistics
-  - quantitative text analysis
-  - medieval literature
   - TEI
-doi: "10.5281/zenodo.24325747"
+repository-code: "https://github.com/javiermunoz-acebes/maze-mhd"
+url: "https://javiermunoz-acebes.github.io/maze-mhd/"
+# doi: "10.5281/zenodo.XXXXXXX"
 license: MIT
 references:
   - type: data
@@ -38,4 +36,19 @@ references:
       name: "DARIAH-DE"
     doi: "10.20375/0000-0016-DADD-A"
     license: CC-BY-4.0
-  
+  - type: data
+    title: "Referenzkorpus Mittelhochdeutsch (1050–1350), Version 2.1"
+    authors:
+      - family-names: "Roussel"
+        given-names: "Adam"
+      - family-names: "Klein"
+        given-names: "Thomas"
+      - family-names: "Dipper"
+        given-names: "Stefanie"
+      - family-names: "Wegera"
+        given-names: "Klaus-Peter"
+      - family-names: "Wich-Reif"
+        given-names: "Claudia"
+    year: 2024
+    doi: "10.5281/zenodo.12825871"
+    license: CC-BY-SA-4.0
